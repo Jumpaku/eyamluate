@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package yaml;
+
+import "yaml/value.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/pb/yaml";
+
+service Unmarshaller {
+  rpc Unmarshal(UnmarshalInput) returns (UnmarshalOutput) {}
+}
+
+message UnmarshalInput {
+  string yaml = 1;
+}
+
+message UnmarshalOutput {
+  Value value = 1;
+}

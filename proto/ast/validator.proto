@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package ast;
+
+import "yaml/value.proto";
+import "ast/schema.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/pb/ast";
+
+service Validator {
+  rpc Validate(ValidateInput) returns (ValidateOutput) {}
+}
+
+message ValidateInput {
+  string source = 1;
+  string json_schema = 2;
+}
+
+message ValidateOutput {
+  enum Status {
+    OK = 0;
+    SCHEMA_ERROR = 1;
+    SOURCE_ERROR = 2;
+    VALIDATION_ERROR = 3;
+  }
+  Status status = 1;
+  repeated string errors = 2;
+}

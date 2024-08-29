@@ -1,0 +1,5 @@
+# proto/buf.yaml
+
+version: v1
+deps:
+  - buf.build/envoyproxy/protoc-gen-validate

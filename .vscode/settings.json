@@ -1,0 +1,14 @@
+{
+    "json.schemas": [
+
+        {
+            "fileMatch": [
+                "example.schema.json"
+            ],
+            "url": "../eyamluate.schema.yaml"
+        }
+    ],
+    "json.schemaDownload.enable": true,
+    "json.validate.enable": true,
+    "json.trace.server": "verbose"
+}

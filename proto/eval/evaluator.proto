@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package eval;
+
+import "ast/schema.proto";
+import "yaml/value.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/pb/eval";
+
+service Evaluator {
+  rpc Evaluate(EvaluateInput) returns (EvaluateOutput) {}
+  rpc EvaluateExpr(EvaluateExprInput) returns (EvaluateOutput) {}
+  rpc EvaluateEval(EvaluateEvalInput) returns (EvaluateOutput) {}
+  rpc EvaluateScalar(EvaluateScalarInput) returns (EvaluateOutput) {}
+  rpc EvaluateNewObj(EvaluateNewObjInput) returns (EvaluateOutput) {}
+  rpc EvaluateNewArr(EvaluateNewArrInput) returns (EvaluateOutput) {}
+  rpc EvaluateValJson(EvaluateValJsonInput) returns (EvaluateOutput) {}
+  rpc EvaluateRangeIter(EvaluateRangeIterInput) returns (EvaluateOutput) {}
+  rpc EvaluateElemAccess(EvaluateElemAccessInput) returns (EvaluateOutput) {}
+  rpc EvaluateFunCall(EvaluateFunCallInput) returns (EvaluateOutput) {}
+  rpc EvaluateCaseBranches(EvaluateCaseBranchesInput) returns (EvaluateOutput) {}
+  rpc EvaluateOpUnary(EvaluateOpUnaryInput) returns (EvaluateOutput) {}
+  rpc EvaluateOpBinary(EvaluateOpBinaryInput) returns (EvaluateOutput) {}
+  rpc EvaluateOpVariadic(EvaluateOpVariadicInput) returns (EvaluateOutput) {}
+}
+
+message FunDefList {
+  FunDefList parent = 1;
+  ast.FunDef def = 2;
+}
+
+message EvaluateInput {
+  FunDefList defs = 1;
+  ast.Eval eval = 2;
+}
+message EvaluateOutput {
+  yaml.Value value = 3;
+}
+
+message EvaluateExprInput {
+  ast.Expr expr = 1;
+  FunDefList defs = 2;
+}
+message EvaluateEvalInput {
+  ast.Eval eval = 1;
+  FunDefList defs = 2;
+}
+message EvaluateScalarInput {
+  ast.Scalar scalar = 1;
+  FunDefList defs = 2;
+}
+message EvaluateNewObjInput {
+  ast.NewObj new_obj = 1;
+  FunDefList defs = 2;
+}
+message EvaluateNewArrInput {
+  ast.NewArr new_arr = 1;
+  FunDefList defs = 2;
+}
+message EvaluateValJsonInput {
+  ast.ValJson val_json = 1;
+  FunDefList defs = 2;
+}
+message EvaluateRangeIterInput {
+  ast.RangeIter range_iter = 1;
+  FunDefList defs = 2;
+}
+message EvaluateElemAccessInput {
+  ast.ElemAccess elem_access = 1;
+  FunDefList defs = 2;
+}
+message EvaluateFunCallInput {
+  ast.FunCall fun_call = 1;
+  FunDefList defs = 2;
+}
+message EvaluateCaseBranchesInput {
+  ast.CaseBranches case_branches = 1;
+  FunDefList defs = 2;
+}
+message EvaluateOpUnaryInput {
+  ast.OpUnary op_unary = 1;
+  FunDefList defs = 2;
+}
+message EvaluateOpBinaryInput {
+  ast.OpBinary op_binary = 1;
+  FunDefList defs = 2;
+}
+message EvaluateOpVariadicInput {
+  ast.OpVariadic op_variadic = 1;
+  FunDefList defs = 2;
+}

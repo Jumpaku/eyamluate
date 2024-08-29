@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package ast;
+
+import "yaml/value.proto";
+import "ast/schema.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/pb/ast";
+
+service Parser {
+  rpc Parse(ParseInput) returns (ParseOutput) {}
+  rpc ParseEval(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseExpr(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseScalar(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseNewObj(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseNewArr(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseValJson(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseRangeIter(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseElemAccess(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseFunCall(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseCaseBranches(ParseExprInput) returns (ParseOutput) {}
+  rpc ParseOpUnary(ParseOpUnaryInput) returns (ParseOutput) {}
+  rpc ParseOpBinary(ParseOpBinaryInput) returns (ParseOutput) {}
+  rpc ParseOpVariadic(ParseOpVariadicInput) returns (ParseOutput) {}
+}
+message ParseInput {
+  string source = 1;
+}
+message ParseOutput {
+  Expr expr = 1;
+}
+
+message ParseExprInput {
+  Path path = 1;
+  yaml.Value value = 2;
+}
+message ParseOpUnaryInput {
+  Path path = 1;
+  ast.OpUnary.Operator operator = 2;
+  yaml.Value value = 3;
+}
+message ParseOpBinaryInput {
+  Path path = 1;
+  ast.OpBinary.Operator operator = 2;
+  yaml.Value value = 3;
+}
+message ParseOpVariadicInput {
+  Path path = 1;
+  ast.OpVariadic.Operator operator = 2;
+  yaml.Value value = 3;
+}

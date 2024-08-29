@@ -1,0 +1,48 @@
+eval:
+  ref: 'a'
+where:
+  - def: a
+    value: 1
+  - def: b
+    value: true
+  - def: c
+    value: 1.2
+  - def: e
+    value: ""
+  - def: f
+    value:
+      ref: a
+  - def: "g"
+    value:
+      arr: [ 1, "", 1.2, true,  { ref: a } ]
+  - def: "h"
+    value:
+      obj: { a: 1, b: "", c: 1.2, d: true, f: { ref: a } }
+  - def: "i"
+    value: 1
+    with: [ "a", "b", "c", "d", "e", "f", "g", "h" ]
+  - def: "j"
+    value:
+      cases:
+        - when: true
+          then: true
+        - otherwise: false
+  - def: "k"
+    value:
+      merge: [ ]
+  - def: gcd
+    with: [ n, m ]
+    value:
+      cases:
+        - when:
+            eq: [ ref: n, 0 ]
+          then:
+            ref: m
+        - otherwise:
+            ref: gcd
+            with:
+              n: { mod: [ ref: m, ref: n ] }
+              m: { ref: a }
+  - def: "l"
+    value:
+      json: { null: a }

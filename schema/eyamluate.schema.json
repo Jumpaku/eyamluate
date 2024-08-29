@@ -1,0 +1,2220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/Evaluation",
+  "definitions": {
+    "ArrayExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ArrayValue"
+        },
+        {
+          "$ref": "#/definitions/ArrayOperation"
+        },
+        {
+          "$ref": "#/definitions/ArrayTransform"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "get": {
+              "anyOf": [
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ArrayExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/IntegerExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ObjectExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/StringExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "as",
+            "get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "eval": {
+              "$ref": "#/definitions/Expression"
+            },
+            "using": {
+              "items": {
+                "$ref": "#/definitions/FunctionDefinition"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "eval"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "as",
+            "ref"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "with": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "ref",
+            "with"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "cases": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConditionalIfThen"
+                  },
+                  {
+                    "$ref": "#/definitions/ConditionalOtherwise"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "cases"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ArrayOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "concat": {
+              "items": {
+                "$ref": "#/definitions/ArrayExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "len": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/ArrayExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "len"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "tail": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/ArrayExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "tail"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "init": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/ArrayExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "init"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "add": {
+              "items": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "$ref": "#/definitions/Expression"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "as": {
+              "const": "arr",
+              "type": "string"
+            }
+          },
+          "required": [
+            "add"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "set": {
+              "items": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "$ref": "#/definitions/IntegerExpression"
+                },
+                {
+                  "$ref": "#/definitions/Expression"
+                }
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [
+            "set"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "arr",
+              "type": "string"
+            },
+            "keys": {
+              "items": {
+                "$ref": "#/definitions/ArrayExpression"
+              },
+              "maxItems": 1,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "keys"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ArrayTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "const": "arr",
+          "type": "string"
+        },
+        "do": {
+          "$ref": "#/definitions/Expression"
+        },
+        "for": {
+          "type": "string"
+        },
+        "in": {
+          "$ref": "#/definitions/Expression"
+        }
+      },
+      "required": [
+        "for",
+        "in",
+        "do"
+      ],
+      "type": "object"
+    },
+    "ArrayValue": {
+      "additionalProperties": false,
+      "properties": {
+        "arr": {
+          "items": {
+            "$ref": "#/definitions/Expression"
+          },
+          "type": "array"
+        },
+        "as": {
+          "const": "arr",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arr"
+      ],
+      "type": "object"
+    },
+    "BooleanExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/BooleanValue"
+        },
+        {
+          "$ref": "#/definitions/BooleanOperation"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "get": {
+              "anyOf": [
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ArrayExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/IntegerExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ObjectExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/StringExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "as",
+            "get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "eval": {
+              "$ref": "#/definitions/Expression"
+            },
+            "using": {
+              "items": {
+                "$ref": "#/definitions/FunctionDefinition"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "eval"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "as",
+            "ref"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "with": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "ref",
+            "with"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "cases": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConditionalIfThen"
+                  },
+                  {
+                    "$ref": "#/definitions/ConditionalOtherwise"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "cases"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BooleanOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "bool": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Expression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/Expression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "bool"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "not": {
+              "items": {
+                "$ref": "#/definitions/BooleanExpression"
+              },
+              "maxItems": 1,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "and": {
+              "items": {
+                "$ref": "#/definitions/BooleanExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "as": {
+              "const": "bool",
+              "type": "string"
+            }
+          },
+          "required": [
+            "and"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "or": {
+              "items": {
+                "$ref": "#/definitions/BooleanExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "or"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "eq": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "eq"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "ne": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "ne"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "lt": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ScalarExpression"
+                  },
+                  {
+                    "$ref": "#/definitions/ArrayExpression"
+                  }
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "lt"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "lte": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ScalarExpression"
+                  },
+                  {
+                    "$ref": "#/definitions/ArrayExpression"
+                  }
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "lte"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "gt": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ScalarExpression"
+                  },
+                  {
+                    "$ref": "#/definitions/ArrayExpression"
+                  }
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "gt"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "bool",
+              "type": "string"
+            },
+            "gte": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ScalarExpression"
+                  },
+                  {
+                    "$ref": "#/definitions/ArrayExpression"
+                  }
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "gte"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "BooleanValue": {
+      "type": "boolean"
+    },
+    "ComplexExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ComplexOperation"
+        },
+        {
+          "$ref": "#/definitions/Evaluation"
+        },
+        {
+          "$ref": "#/definitions/VariableReference"
+        },
+        {
+          "$ref": "#/definitions/FunctionCall"
+        },
+        {
+          "$ref": "#/definitions/ConditionalCases"
+        }
+      ]
+    },
+    "ComplexOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "get": {
+          "anyOf": [
+            {
+              "items": [
+                {
+                  "$ref": "#/definitions/ArrayExpression"
+                },
+                {
+                  "$ref": "#/definitions/IntegerExpression"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "items": [
+                {
+                  "$ref": "#/definitions/ObjectExpression"
+                },
+                {
+                  "$ref": "#/definitions/StringExpression"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "required": [
+        "get"
+      ],
+      "type": "object"
+    },
+    "ConditionalCases": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "cases": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ConditionalIfThen"
+              },
+              {
+                "$ref": "#/definitions/ConditionalOtherwise"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "cases"
+      ],
+      "type": "object"
+    },
+    "ConditionalIfThen": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "if": {
+          "$ref": "#/definitions/Expression"
+        },
+        "then": {
+          "$ref": "#/definitions/Expression"
+        }
+      },
+      "required": [
+        "if",
+        "then"
+      ],
+      "type": "object"
+    },
+    "ConditionalOtherwise": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "otherwise": {
+          "$ref": "#/definitions/Expression"
+        }
+      },
+      "required": [
+        "otherwise"
+      ],
+      "type": "object"
+    },
+    "Evaluation": {
+      "examples": [
+        1,
+        1.2,
+        "abc",
+        true,
+        false,
+        null,
+        {},
+        [],
+        {
+          "ref": 1
+        },
+        {
+          "obj": {
+            "key": "value"
+          }
+        },
+        {
+          "arr": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "plus": [
+            1,
+            1
+          ]
+        },
+        {
+          "minus": [
+            1,
+            1
+          ]
+        },
+        {
+          "minus": [
+            1
+          ]
+        }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "eval": {
+          "$ref": "#/definitions/Expression"
+        },
+        "using": {
+          "items": {
+            "$ref": "#/definitions/FunctionDefinition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "eval"
+      ],
+      "type": "object"
+    },
+    "Expression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ScalarExpression"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/ObjectExpression"
+        },
+        {
+          "$ref": "#/definitions/ArrayExpression"
+        },
+        {
+          "$ref": "#/definitions/ComplexExpression"
+        }
+      ]
+    },
+    "FunctionCall": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "with": {
+          "items": {
+            "$ref": "#/definitions/Expression"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ref",
+        "with"
+      ],
+      "type": "object"
+    },
+    "FunctionDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "def": {
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/definitions/Expression"
+        },
+        "with": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "def",
+        "value"
+      ],
+      "type": "object"
+    },
+    "IntegerExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/IntegerValue"
+        },
+        {
+          "$ref": "#/definitions/IntegerOperation"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "get": {
+              "anyOf": [
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ArrayExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/IntegerExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ObjectExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/StringExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "as",
+            "get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "eval": {
+              "$ref": "#/definitions/Expression"
+            },
+            "using": {
+              "items": {
+                "$ref": "#/definitions/FunctionDefinition"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "eval"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "as",
+            "ref"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "with": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "ref",
+            "with"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "cases": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConditionalIfThen"
+                  },
+                  {
+                    "$ref": "#/definitions/ConditionalOtherwise"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "cases"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IntegerOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "int": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Expression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/Expression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "int"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "plus": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "plus"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "minus": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/IntegerExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/IntegerExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/IntegerExpression"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "minus"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "mul": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "mul"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "div": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "div"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "mod": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "mod"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "min": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "max": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "max"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitand": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitand"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitor": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitor"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitxor": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitxor"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitinv": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitinv"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitshl": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitshl"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitshr": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitshr"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "bitushr": {
+              "items": {
+                "$ref": "#/definitions/IntegerExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "bitushr"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "len": {
+              "items": {
+                "$ref": "#/definitions/ArrayExpression"
+              },
+              "maxItems": 1,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "len"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "int",
+              "type": "string"
+            },
+            "cmp": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ScalarExpression"
+                  },
+                  {
+                    "$ref": "#/definitions/ArrayExpression"
+                  }
+                ]
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "cmp"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "IntegerValue": {
+      "type": "number"
+    },
+    "NumberExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NumberValue"
+        },
+        {
+          "$ref": "#/definitions/NumberOperation"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "get": {
+              "anyOf": [
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ArrayExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/IntegerExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                {
+                  "items": [
+                    {
+                      "$ref": "#/definitions/ObjectExpression"
+                    },
+                    {
+                      "$ref": "#/definitions/StringExpression"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "as",
+            "get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "eval": {
+              "$ref": "#/definitions/Expression"
+            },
+            "using": {
+              "items": {
+                "$ref": "#/definitions/FunctionDefinition"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "eval"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "as",
+            "ref"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "ref": {
+              "type": "string"
+            },
+            "with": {
+              "items": {
+                "$ref": "#/definitions/Expression"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "ref",
+            "with"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "$ref": "#/definitions/Type"
+            },
+            "cases": {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConditionalIfThen"
+                  },
+                  {
+                    "$ref": "#/definitions/ConditionalOtherwise"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "as",
+            "cases"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "NumberOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "num": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Expression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/Expression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "num"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "plus": {
+              "items": {
+                "$ref": "#/definitions/NumberExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "plus"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "minus": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NumberExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/NumberExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/NumberExpression"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "minus"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "mul": {
+              "items": {
+                "$ref": "#/definitions/NumberExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "mul"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "div": {
+              "items": {
+                "$ref": "#/definitions/NumberExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "div"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "min": {
+              "items": {
+                "$ref": "#/definitions/NumberExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "min"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "num",
+              "type": "string"
+            },
+            "max": {
+              "items": {
+                "$ref": "#/definitions/NumberExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "max"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "NumberValue": {
+      "type": "number"
+    },
+    "ObjectExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ObjectValue"
+        },
+        {
+          "$ref": "#/definitions/ObjectOperation"
+        },
+        {
+          "properties": {
+            "as": {
+              "const": "obj",
+              "type": "string"
+            }
+          },
+          "required": [
+            "as"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ObjectOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "obj",
+              "type": "string"
+            },
+            "put": {
+              "items": [
+                {
+                  "$ref": "#/definitions/ObjectExpression"
+                },
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "$ref": "#/definitions/Expression"
+                }
+              ],
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "required": [
+            "put"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "obj",
+              "type": "string"
+            },
+            "del": {
+              "items": [
+                {
+                  "$ref": "#/definitions/ObjectExpression"
+                },
+                {
+                  "$ref": "#/definitions/StringExpression"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "del"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ObjectValue": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "const": "obj",
+          "type": "string"
+        },
+        "obj": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "obj"
+      ],
+      "type": "object"
+    },
+    "ScalarExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/IntegerExpression"
+        },
+        {
+          "$ref": "#/definitions/NumberExpression"
+        },
+        {
+          "$ref": "#/definitions/BooleanExpression"
+        },
+        {
+          "$ref": "#/definitions/StringExpression"
+        }
+      ]
+    },
+    "StringExpression": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StringValue"
+        },
+        {
+          "$ref": "#/definitions/StringOperation"
+        },
+        {
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            }
+          },
+          "required": [
+            "as"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StringOperation": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "str": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Expression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/Expression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "str"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "get": {
+              "items": [
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "$ref": "#/definitions/IntegerExpression"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "get"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "concat": {
+              "items": {
+                "$ref": "#/definitions/StringExpression"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "concat"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/StringExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "head"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "tail": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/StringExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "tail"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "last": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/StringExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "last"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "as": {
+              "const": "str",
+              "type": "string"
+            },
+            "init": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/StringExpression"
+                },
+                {
+                  "items": {
+                    "$ref": "#/definitions/StringExpression"
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "init"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StringValue": {
+      "type": "string"
+    },
+    "Type": {
+      "enum": [
+        "int",
+        "num",
+        "bool",
+        "str",
+        "null",
+        "obj",
+        "arr"
+      ],
+      "type": "string"
+    },
+    "VariableReference": {
+      "additionalProperties": false,
+      "properties": {
+        "as": {
+          "$ref": "#/definitions/Type"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref"
+      ],
+      "type": "object"
+    }
+  }
+}
