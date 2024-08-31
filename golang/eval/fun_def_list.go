@@ -1,6 +1,6 @@
 package eval
 
-import "github.com/Jumpaku/eyamlate/golang/pb/ast"
+import "github.com/Jumpaku/eyamlate/golang/ast"
 
 func (l *FunDefList) Register(def *ast.FunDef) *FunDefList {
 	return &FunDefList{
