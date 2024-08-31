@@ -1,644 +1,723 @@
 package eval
 
 import (
-	"context"
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/pb/ast"
-	"github.com/Jumpaku/eyamlate/golang/pb/yaml"
+	"github.com/Jumpaku/eyamlate/golang/ast"
+	"github.com/Jumpaku/eyamlate/golang/yaml"
 	"math"
+	"slices"
+	"strings"
 )
 
-type Evaluator struct{}
-
-var _ EvaluatorServer = (*Evaluator)(nil)
-
-func (e *Evaluator) mustEmbedUnimplementedEvaluatorServer() {
-	//TODO implement me
-	panic("implement me")
+type Evaluator interface {
+	Evaluate(*EvaluateInput) *EvaluateOutput
+	EvaluateExpr(*EvaluateExprInput) *EvaluateOutput
+	EvaluateEval(*EvaluateEvalInput) *EvaluateOutput
+	EvaluateScalar(*EvaluateScalarInput) *EvaluateOutput
+	EvaluateNewObj(*EvaluateNewObjInput) *EvaluateOutput
+	EvaluateNewArr(*EvaluateNewArrInput) *EvaluateOutput
+	EvaluateValJson(*EvaluateValJsonInput) *EvaluateOutput
+	EvaluateRangeIter(*EvaluateRangeIterInput) *EvaluateOutput
+	EvaluateElemAccess(*EvaluateElemAccessInput) *EvaluateOutput
+	EvaluateFunCall(*EvaluateFunCallInput) *EvaluateOutput
+	EvaluateCaseBranches(*EvaluateCaseBranchesInput) *EvaluateOutput
+	EvaluateOpUnary(*EvaluateOpUnaryInput) *EvaluateOutput
+	EvaluateOpBinary(*EvaluateOpBinaryInput) *EvaluateOutput
+	EvaluateOpVariadic(*EvaluateOpVariadicInput) *EvaluateOutput
 }
 
-func (e *Evaluator) Evaluate(ctx context.Context, input *EvaluateInput) (*EvaluateOutput, error) {
-	return e.EvaluateEval(ctx, &EvaluateEvalInput{Defs: input.Defs, Eval: input.Eval})
+type BasicEvaluator struct{}
+
+var _ Evaluator = &BasicEvaluator{}
+
+func (e *BasicEvaluator) Evaluate(input *EvaluateInput) *EvaluateOutput {
+	return e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.Expr})
 }
 
-func (e *Evaluator) EvaluateExpr(ctx context.Context, input *EvaluateExprInput) (*EvaluateOutput, error) {
-	//TODO implement me
-	panic("implement me")
+func (e *BasicEvaluator) EvaluateExpr(input *EvaluateExprInput) *EvaluateOutput {
+	switch input.Expr.Kind {
+	default:
+		return errorUnsupportedExpr(input.Expr)
+	case ast.Expr_SCALAR:
+		return e.EvaluateScalar(&EvaluateScalarInput{Path: input.Expr.Path, Defs: input.Defs, Scalar: input.Expr.Scalar})
+	case ast.Expr_NEW_OBJ:
+		return e.EvaluateNewObj(&EvaluateNewObjInput{Path: input.Expr.Path, Defs: input.Defs, NewObj: input.Expr.NewObj})
+	case ast.Expr_NEW_ARR:
+		return e.EvaluateNewArr(&EvaluateNewArrInput{Path: input.Expr.Path, Defs: input.Defs, NewArr: input.Expr.NewArr})
+	case ast.Expr_VAL_JSON:
+		return e.EvaluateValJson(&EvaluateValJsonInput{Path: input.Expr.Path, Defs: input.Defs, ValJson: input.Expr.ValJson})
+	case ast.Expr_RANGE_ITER:
+		return e.EvaluateRangeIter(&EvaluateRangeIterInput{Path: input.Expr.Path, Defs: input.Defs, RangeIter: input.Expr.RangeIter})
+	case ast.Expr_ELEM_ACCESS:
+		return e.EvaluateElemAccess(&EvaluateElemAccessInput{Path: input.Expr.Path, Defs: input.Defs, ElemAccess: input.Expr.ElemAccess})
+	case ast.Expr_FUN_CALL:
+		return e.EvaluateFunCall(&EvaluateFunCallInput{Path: input.Expr.Path, Defs: input.Defs, FunCall: input.Expr.FunCall})
+	case ast.Expr_CASE_BRANCHES:
+		return e.EvaluateCaseBranches(&EvaluateCaseBranchesInput{Path: input.Expr.Path, Defs: input.Defs, CaseBranches: input.Expr.CaseBranches})
+	case ast.Expr_OP_UNARY:
+		return e.EvaluateOpUnary(&EvaluateOpUnaryInput{Path: input.Expr.Path, Defs: input.Defs, OpUnary: input.Expr.OpUnary})
+	case ast.Expr_OP_BINARY:
+		return e.EvaluateOpBinary(&EvaluateOpBinaryInput{Path: input.Expr.Path, Defs: input.Defs, OpBinary: input.Expr.OpBinary})
+	case ast.Expr_OP_VARIADIC:
+		return e.EvaluateOpVariadic(&EvaluateOpVariadicInput{Path: input.Expr.Path, Defs: input.Defs, OpVariadic: input.Expr.OpVariadic})
+	}
 }
 
-func (e *Evaluator) EvaluateEval(ctx context.Context, input *EvaluateEvalInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateEval(input *EvaluateEvalInput) *EvaluateOutput {
 	st := input.Defs
 	for _, def := range input.Eval.Where {
 		st = st.Register(def)
 	}
-	return e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: input.Eval.Eval})
+	return e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: input.Eval.Eval})
 }
 
-func (e *Evaluator) EvaluateScalar(ctx context.Context, input *EvaluateScalarInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateScalar(input *EvaluateScalarInput) *EvaluateOutput {
 	v := input.Scalar
-	path := v.Path
 	switch v.Val.Type {
 	default:
-		return nil, ast.ErrUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR}, v.Val.Type)
-	case yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR:
-		return &EvaluateOutput{Value: v.Val}, nil
+		return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR}, v.Val.Type)
+	case yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR:
+		return &EvaluateOutput{Value: v.Val}
 	}
 }
 
-func (e *Evaluator) EvaluateNewObj(ctx context.Context, input *EvaluateNewObjInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateNewObj(input *EvaluateNewObjInput) *EvaluateOutput {
 	v := input.NewObj
-	obj := &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: map[string]*yaml.Value{}}
+	obj := &yaml.Value{Type: yaml.Type_OBJ, Obj: map[string]*yaml.Value{}}
 	for k, val := range v.Obj {
-		r, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: val})
-		if err != nil {
-			return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+		expr := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: val})
+		if expr.Status != EvaluateOutput_OK {
+			return expr
 		}
-		obj.Obj[k] = r.Value
+		obj.Obj[k] = expr.Value
 	}
-	return &EvaluateOutput{Value: obj}, nil
+	return &EvaluateOutput{Value: obj}
 }
 
-func (e *Evaluator) EvaluateNewArr(ctx context.Context, input *EvaluateNewArrInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateNewArr(input *EvaluateNewArrInput) *EvaluateOutput {
 	v := input.NewArr
-	arr := &yaml.Value{Type: yaml.Type_TYPE_ARR}
+	arr := &yaml.Value{Type: yaml.Type_ARR}
 	for _, val := range v.Arr {
-		r, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: val})
-		if err != nil {
-			return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+		expr := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: val})
+		if expr.Status != EvaluateOutput_OK {
+			return expr
 		}
-		arr.Arr = append(arr.Arr, r.Value)
+		arr.Arr = append(arr.Arr, expr.Value)
 	}
-	return &EvaluateOutput{Value: arr}, nil
+	return &EvaluateOutput{Value: arr}
 }
 
-func (e *Evaluator) EvaluateValJson(ctx context.Context, input *EvaluateValJsonInput) (*EvaluateOutput, error) {
-	return &EvaluateOutput{Value: input.ValJson.Json}, nil
+func (e *BasicEvaluator) EvaluateValJson(input *EvaluateValJsonInput) *EvaluateOutput {
+	return &EvaluateOutput{Value: input.ValJson.Json}
 }
 
-func (e *Evaluator) EvaluateRangeIter(ctx context.Context, input *EvaluateRangeIterInput) (*EvaluateOutput, error) {
-	in, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: input.RangeIter.In})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+func (e *BasicEvaluator) EvaluateRangeIter(input *EvaluateRangeIterInput) *EvaluateOutput {
+	in := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.RangeIter.In})
+	if in.Status != EvaluateOutput_OK {
+		return in
 	}
 	switch in.Value.Type {
 	default:
-		return nil, ast.ErrUnexpectedType(input.RangeIter.Path, []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, in.Value.Type)
-	case yaml.Type_TYPE_ARR:
-		arr := &yaml.Value{Type: yaml.Type_TYPE_ARR}
+		return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, in.Value.Type)
+	case yaml.Type_ARR:
+		arr := &yaml.Value{Type: yaml.Type_ARR}
 		for i, elem := range in.Value.Arr {
 			st := input.Defs
 			st = st.Register(&ast.FunDef{
 				Def:   input.RangeIter.ForPos,
-				Value: ExprOfValue(&yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(i)}),
+				Value: exprOfValue(&yaml.Value{Type: yaml.Type_NUM, Num: float64(i)}),
 			})
 			st = st.Register(&ast.FunDef{
 				Def:   input.RangeIter.ForVal,
-				Value: ExprOfValue(elem),
+				Value: exprOfValue(elem),
 			})
-			if_, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: input.RangeIter.If})
-			if err != nil {
-				return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+			if_ := e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: input.RangeIter.If})
+			if if_.Status != EvaluateOutput_OK {
+				return if_
 			}
 			if if_.Value.Bool {
-				do, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: input.RangeIter.Do})
-				if err != nil {
-					return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+				do := e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: input.RangeIter.Do})
+				if do.Status != EvaluateOutput_OK {
+					return do
 				}
 				arr.Arr = append(arr.Arr, do.Value)
 			}
 		}
-		return &EvaluateOutput{Value: arr}, nil
-	case yaml.Type_TYPE_OBJ:
-		obj := &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: map[string]*yaml.Value{}}
+		return &EvaluateOutput{Value: arr}
+	case yaml.Type_OBJ:
+		obj := &yaml.Value{Type: yaml.Type_OBJ, Obj: map[string]*yaml.Value{}}
 		for k, elem := range in.Value.Obj {
 			st := input.Defs
 			st = st.Register(&ast.FunDef{
 				Def:   input.RangeIter.ForPos,
-				Value: ExprOfValue(&yaml.Value{Type: yaml.Type_TYPE_STR, Str: k}),
+				Value: exprOfValue(&yaml.Value{Type: yaml.Type_STR, Str: k}),
 			})
 			st = st.Register(&ast.FunDef{
 				Def:   input.RangeIter.ForVal,
-				Value: ExprOfValue(elem),
+				Value: exprOfValue(elem),
 			})
-			if_, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: input.RangeIter.If})
-			if err != nil {
-				return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+			if_ := e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: input.RangeIter.If})
+			if if_.Status != EvaluateOutput_OK {
+				return if_
 			}
 			if if_.Value.Bool {
-				do, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: input.RangeIter.Do})
-				if err != nil {
-					return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+				do := e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: input.RangeIter.Do})
+				if do.Status != EvaluateOutput_OK {
+					return do
 				}
 				obj.Obj[k] = do.Value
 			}
 		}
-		return &EvaluateOutput{Value: obj}, nil
+		return &EvaluateOutput{Value: obj}
 	}
 }
-func ErrIndexOutOfBounds(path *ast.Path, wantBegin, wantEnd int, index int) error {
-	return fmt.Errorf("out of bounds %v: want [%v, %v): got %v", path.Format(), wantBegin, wantEnd, index)
-}
-func (e *Evaluator) EvaluateElemAccess(ctx context.Context, input *EvaluateElemAccessInput) (*EvaluateOutput, error) {
-	get, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.Get})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+
+func (e *BasicEvaluator) EvaluateElemAccess(input *EvaluateElemAccessInput) *EvaluateOutput {
+	get := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.Get})
+	if get.Status != EvaluateOutput_OK {
+		return get
 	}
-	from, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.From})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+	from := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.From})
+	if from.Status != EvaluateOutput_OK {
+		return from
 	}
 
 	switch from.Value.Type {
 	default:
-		return nil, ast.ErrUnexpectedType(input.ElemAccess.Path, []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, from.Value.Type)
-	case yaml.Type_TYPE_ARR:
+		return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, from.Value.Type)
+	case yaml.Type_ARR:
 		if !get.Value.CanInt() {
-			return nil, ast.ErrUnexpectedType(input.ElemAccess.Path, []yaml.Type{yaml.Type_TYPE_NUM}, get.Value.Type)
+			return errorArithmeticError(input.Path, "index for an array must be integer")
 		}
 		index := int(get.Value.Num)
 		if index < 0 || index >= len(from.Value.Arr) {
-			return nil, ErrIndexOutOfBounds(input.ElemAccess.Path, 0, len(from.Value.Arr), index)
+			return errorIndexOutOfBounds(input.Path, 0, len(from.Value.Arr), index)
 		}
-		return &EvaluateOutput{Value: from.Value.Arr[index]}, nil
-	case yaml.Type_TYPE_OBJ:
-		if get.Value.Type != yaml.Type_TYPE_STR {
-			return nil, ast.ErrUnexpectedType(input.ElemAccess.Path, []yaml.Type{yaml.Type_TYPE_STR}, get.Value.Type)
+		return &EvaluateOutput{Value: from.Value.Arr[index]}
+	case yaml.Type_OBJ:
+		if get.Value.Type != yaml.Type_STR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_STR}, get.Value.Type)
 		}
 		key := get.Value.Str
 		val, ok := from.Value.Obj[key]
 		if !ok {
-			return nil, ast.ErrKeyNotFound(input.ElemAccess.Path, []string{key})
+			return errorKeyNotFound(input.Path, from.Value.Keys(), key)
 		}
-		return &EvaluateOutput{Value: val}, nil
+		return &EvaluateOutput{Value: val}
 	}
 }
 
-func ErrReferenceNotFound(path *ast.Path, ref string) error {
-	return fmt.Errorf("reference not found: %v: %v", path.Format(), ref)
-}
-func (e *Evaluator) EvaluateFunCall(ctx context.Context, input *EvaluateFunCallInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateFunCall(input *EvaluateFunCallInput) *EvaluateOutput {
 	ref := input.FunCall.Ref
 	st := input.Defs.Find(ref)
 	if st == nil {
-		return nil, ErrReferenceNotFound(input.FunCall.Path, ref)
+		return errorReferenceNotFound(input.Path, ref)
+	}
+	for _, defArg := range st.Def.With {
+		if _, ok := input.FunCall.With[defArg]; !ok {
+			return errorKeyNotFound(input.Path, st.Def.With, defArg)
+		}
 	}
 	for k, v := range input.FunCall.With {
-		arg, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: v})
-		if err != nil {
-			return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+		arg := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: v})
+		if arg.Status != EvaluateOutput_OK {
+			return arg
 		}
 		st = st.Register(&ast.FunDef{
 			Def:   k,
-			Value: ExprOfValue(arg.Value),
+			Value: exprOfValue(arg.Value),
 		})
 	}
-	return e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: st, Expr: st.Def.Value})
+	return e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: st.Def.Value})
 }
 
-func (e *Evaluator) EvaluateCaseBranches(ctx context.Context, input *EvaluateCaseBranchesInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateCaseBranches(input *EvaluateCaseBranchesInput) *EvaluateOutput {
 	for _, branch := range input.CaseBranches.Branches {
 		if branch.IsOtherwise {
-			return e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: branch.Otherwise})
+			return e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: branch.Otherwise})
 		}
-		when, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: branch.When})
-		if err != nil {
-			return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+		when := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: branch.When})
+		if when.Status != EvaluateOutput_OK {
+			return when
 		}
 		if !when.Value.Bool {
 			continue
 		}
-		return e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: branch.Then})
+		return e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: branch.Then})
 	}
-	return nil, fmt.Errorf("unexhaustive cases: %v", input.CaseBranches.Path.Format())
+	return errorCasesNotExhaustive(input.Path)
 }
 
-func ErrUnsupportedOperatorUnary(path *ast.Path, op ast.OpUnary_Operator) error {
-	return fmt.Errorf("unsupported unary operator %v: %v", path.Format(), op)
-}
-func ErrUnsupportedOperatorBinary(path *ast.Path, op ast.OpBinary_Operator) error {
-	return fmt.Errorf("unsupported unary operator %v: %v", path.Format(), op)
-}
-func ErrUnsupportedOperatorVariadic(path *ast.Path, op ast.OpVariadic_Operator) error {
-	return fmt.Errorf("unsupported unary operator %v: %v", path.Format(), op)
-}
-func (e *Evaluator) EvaluateOpUnary(ctx context.Context, input *EvaluateOpUnaryInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateOpUnary(input *EvaluateOpUnaryInput) *EvaluateOutput {
 	op := input.OpUnary
-	operand, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: op.Operand})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+	operand := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: op.Operand})
+	if operand.Status != EvaluateOutput_OK {
+		return operand
 	}
 	switch op.Operator {
 	default:
-		return nil, ErrUnsupportedOperatorUnary(op.Path, op.Operator)
-	case ast.OpUnary_OPERATOR_NOT:
-		if operand.Value.Type != yaml.Type_TYPE_BOOL {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Value.Type)
+		return errorUnsupportedOperation(input.Path, op.Operator.String())
+	case ast.OpUnary_NOT:
+		if operand.Value.Type != yaml.Type_BOOL {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_BOOL}, operand.Value.Type)
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !operand.Value.Bool},
-		}, nil
-	case ast.OpUnary_OPERATOR_LEN:
-		switch operand.Value.Type {
-		default:
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, operand.Value.Type)
-		case yaml.Type_TYPE_ARR:
-			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Value.Arr))},
-			}, nil
-		case yaml.Type_TYPE_OBJ:
-			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Value.Obj))},
-			}, nil
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: !operand.Value.Bool},
 		}
-	case ast.OpUnary_OPERATOR_KEYS:
+	case ast.OpUnary_LEN:
 		switch operand.Value.Type {
 		default:
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, operand.Value.Type)
-		case yaml.Type_TYPE_ARR:
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, operand.Value.Type)
+		case yaml.Type_ARR:
+			return &EvaluateOutput{
+				Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Value.Arr))},
+			}
+		case yaml.Type_OBJ:
+			return &EvaluateOutput{
+				Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Value.Obj))},
+			}
+		}
+	case ast.OpUnary_KEYS:
+		switch operand.Value.Type {
+		default:
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, operand.Value.Type)
+		case yaml.Type_ARR:
 			keys := []*yaml.Value{}
 			for i := range operand.Value.Arr {
-				keys = append(keys, &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(i)})
+				keys = append(keys, &yaml.Value{Type: yaml.Type_NUM, Num: float64(i)})
 			}
 			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: keys},
-			}, nil
-		case yaml.Type_TYPE_OBJ:
+				Value: &yaml.Value{Type: yaml.Type_ARR, Arr: keys},
+			}
+		case yaml.Type_OBJ:
 			keys := []*yaml.Value{}
 			for k := range operand.Value.Obj {
-				keys = append(keys, &yaml.Value{Type: yaml.Type_TYPE_STR, Str: k})
+				keys = append(keys, &yaml.Value{Type: yaml.Type_STR, Str: k})
 			}
 			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: keys},
-			}, nil
+				Value: &yaml.Value{Type: yaml.Type_ARR, Arr: keys},
+			}
 		}
-	case ast.OpUnary_OPERATOR_FLAT:
-		if operand.Value.Type != yaml.Type_TYPE_ARR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, operand.Value.Type)
+	case ast.OpUnary_FLAT:
+		if operand.Value.Type != yaml.Type_ARR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
 		}
 		flat := []*yaml.Value{}
 		for _, elem := range operand.Value.Arr {
-			if elem.Type != yaml.Type_TYPE_ARR {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, elem.Type)
+			if elem.Type != yaml.Type_ARR {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, elem.Type)
 			}
 			flat = append(flat, elem.Arr...)
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: flat},
-		}, nil
-	case ast.OpUnary_OPERATOR_HEAD:
-		if operand.Value.Type != yaml.Type_TYPE_ARR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, operand.Value.Type)
+			Value: &yaml.Value{Type: yaml.Type_ARR, Arr: flat},
+		}
+	case ast.OpUnary_HEAD:
+		if operand.Value.Type != yaml.Type_ARR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
 		}
 		if len(operand.Value.Arr) == 0 {
-			return nil, ErrIndexOutOfBounds(op.Path, 0, 1, 0)
+			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
 		}
-		return &EvaluateOutput{Value: operand.Value.Arr[0]}, nil
-	case ast.OpUnary_OPERATOR_TAIL:
-		if operand.Value.Type != yaml.Type_TYPE_ARR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, operand.Value.Type)
+		return &EvaluateOutput{Value: operand.Value.Arr[0]}
+	case ast.OpUnary_TAIL:
+		if operand.Value.Type != yaml.Type_ARR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
 		}
 		if len(operand.Value.Arr) == 0 {
-			return nil, ErrIndexOutOfBounds(op.Path, 0, 1, 0)
+			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
 		}
 		return &EvaluateOutput{
 			Value: &yaml.Value{
-				Type: yaml.Type_TYPE_ARR,
+				Type: yaml.Type_ARR,
 				Arr:  operand.Value.Arr[1:],
 			},
-		}, nil
-	case ast.OpUnary_OPERATOR_INIT:
-		if operand.Value.Type != yaml.Type_TYPE_ARR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, operand.Value.Type)
+		}
+	case ast.OpUnary_INIT:
+		if operand.Value.Type != yaml.Type_ARR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
 		}
 		if len(operand.Value.Arr) == 0 {
-			return nil, ErrIndexOutOfBounds(op.Path, 0, 1, 0)
+			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
 		}
 		return &EvaluateOutput{
 			Value: &yaml.Value{
-				Type: yaml.Type_TYPE_ARR,
+				Type: yaml.Type_ARR,
 				Arr:  operand.Value.Arr[:len(operand.Value.Arr)-1],
 			},
-		}, nil
-	case ast.OpUnary_OPERATOR_LAST:
-		if operand.Value.Type != yaml.Type_TYPE_ARR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_ARR}, operand.Value.Type)
+		}
+	case ast.OpUnary_LAST:
+		if operand.Value.Type != yaml.Type_ARR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
 		}
 		if len(operand.Value.Arr) == 0 {
-			return nil, ErrIndexOutOfBounds(op.Path, 0, 1, 0)
+			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
 		}
-		return &EvaluateOutput{Value: operand.Value.Arr[len(operand.Value.Arr)-1]}, nil
-	case ast.OpUnary_OPERATOR_ERROR:
-		if operand.Value.Type != yaml.Type_TYPE_STR {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_STR}, operand.Value.Type)
+		return &EvaluateOutput{Value: operand.Value.Arr[len(operand.Value.Arr)-1]}
+	case ast.OpUnary_ABORT:
+		if operand.Value.Type != yaml.Type_STR {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_STR}, operand.Value.Type)
 		}
-		return nil, fmt.Errorf("error: %v", operand.Value.Str)
+		return &EvaluateOutput{
+			Status:       EvaluateOutput_ABORT_ERROR,
+			ErrorMessage: operand.Value.Str,
+			ErrorPath:    input.Path,
+		}
 	}
 }
 
-func (e *Evaluator) EvaluateOpBinary(ctx context.Context, input *EvaluateOpBinaryInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateOpBinary(input *EvaluateOpBinaryInput) *EvaluateOutput {
 	op := input.OpBinary
-	operandLeft, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: op.OperandLeft})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+	operandLeft := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: op.OperandLeft})
+	if operandLeft.Status != EvaluateOutput_OK {
+		return operandLeft
 	}
-	operandRight, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: op.OperandRight})
-	if err != nil {
-		return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+	operandRight := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: op.OperandRight})
+	if operandRight.Status != EvaluateOutput_OK {
+		return operandRight
 	}
 	switch op.Operator {
 	default:
-		return nil, ErrUnsupportedOperatorBinary(op.Path, op.Operator)
-	case ast.OpBinary_OPERATOR_SUB:
-		if operandLeft.Value.Type != yaml.Type_TYPE_NUM {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandLeft.Value.Type)
+		return errorUnsupportedOperation(input.Path, op.Operator.String())
+	case ast.OpBinary_SUB:
+		if operandLeft.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operandLeft.Value.Type)
 		}
-		if operandRight.Value.Type != yaml.Type_TYPE_NUM {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandRight.Value.Type)
+		if operandRight.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operandRight.Value.Type)
 		}
 		return &EvaluateOutput{
 			Value: &yaml.Value{
-				Type: yaml.Type_TYPE_NUM,
+				Type: yaml.Type_NUM,
 				Num:  operandLeft.Value.Num - operandRight.Value.Num,
 			},
-		}, nil
-	case ast.OpBinary_OPERATOR_DIV:
-		if operandLeft.Value.Type != yaml.Type_TYPE_NUM {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandLeft.Value.Type)
 		}
-		if operandRight.Value.Type != yaml.Type_TYPE_NUM {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandRight.Value.Type)
+	case ast.OpBinary_DIV:
+		if operandLeft.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operandLeft.Value.Type)
+		}
+		if operandRight.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operandRight.Value.Type)
 		}
 		return &EvaluateOutput{
 			Value: &yaml.Value{
-				Type: yaml.Type_TYPE_NUM,
+				Type: yaml.Type_NUM,
 				Num:  operandLeft.Value.Num / operandRight.Value.Num,
 			},
-		}, nil
-	case ast.OpBinary_OPERATOR_MOD:
+		}
+	case ast.OpBinary_MOD:
 		if !operandLeft.Value.CanInt() {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandLeft.Value.Type)
+			return errorArithmeticError(input.Path, "first operand must be integer")
 		}
 		if !operandRight.Value.CanInt() {
-			return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operandRight.Value.Type)
+			return errorArithmeticError(input.Path, "second operand must be integer")
 		}
 		return &EvaluateOutput{
 			Value: &yaml.Value{
-				Type: yaml.Type_TYPE_NUM,
+				Type: yaml.Type_NUM,
 				Num:  float64(int64(operandLeft.Value.Num) % int64(operandRight.Value.Num)),
 			},
-		}, nil
-	case ast.OpBinary_OPERATOR_EQ:
-		eq, err := equal(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to equal: %w", err)
+		}
+	case ast.OpBinary_EQ:
+		return equal(input.Path, operandLeft.Value, operandRight.Value)
+	case ast.OpBinary_NEQ:
+		eq := equal(input.Path, operandLeft.Value, operandRight.Value)
+		if eq.Status != EvaluateOutput_OK {
+			return eq
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: eq},
-		}, nil
-	case ast.OpBinary_OPERATOR_NEQ:
-		eq, err := equal(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to equal: %w", err)
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: !eq.Value.Bool},
+		}
+	case ast.OpBinary_LT:
+		cmp := compare(input.Path, operandLeft.Value, operandRight.Value)
+		if cmp.Status != EvaluateOutput_OK {
+			return cmp
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !eq},
-		}, nil
-	case ast.OpBinary_OPERATOR_LT:
-		cmp, err := compare(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to compare: %w", err)
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num < 0},
+		}
+	case ast.OpBinary_LTE:
+		cmp := compare(input.Path, operandLeft.Value, operandRight.Value)
+		if cmp.Status != EvaluateOutput_OK {
+			return cmp
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp < 0},
-		}, nil
-	case ast.OpBinary_OPERATOR_LTE:
-		cmp, err := compare(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to compare: %w", err)
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num <= 0},
+		}
+	case ast.OpBinary_GT:
+		cmp := compare(input.Path, operandLeft.Value, operandRight.Value)
+		if cmp.Status != EvaluateOutput_OK {
+			return cmp
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp <= 0},
-		}, nil
-	case ast.OpBinary_OPERATOR_GT:
-		cmp, err := compare(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to compare: %w", err)
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num > 0},
+		}
+	case ast.OpBinary_GTE:
+		cmp := compare(input.Path, operandLeft.Value, operandRight.Value)
+		if cmp.Status != EvaluateOutput_OK {
+			return cmp
 		}
 		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp > 0},
-		}, nil
-	case ast.OpBinary_OPERATOR_GTE:
-		cmp, err := compare(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to compare: %w", err)
+			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num >= 0},
 		}
-		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp >= 0},
-		}, nil
-	case ast.OpBinary_OPERATOR_CMP:
-		cmp, err := compare(op.Path, operandLeft.Value, operandRight.Value)
-		if err != nil {
-			return nil, fmt.Errorf("fail to compare: %w", err)
-		}
-		return &EvaluateOutput{
-			Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(cmp)},
-		}, nil
+	case ast.OpBinary_CMP:
+		return compare(input.Path, operandLeft.Value, operandRight.Value)
 	}
 }
 
-func (e *Evaluator) EvaluateOpVariadic(ctx context.Context, input *EvaluateOpVariadicInput) (*EvaluateOutput, error) {
+func (e *BasicEvaluator) EvaluateOpVariadic(input *EvaluateOpVariadicInput) *EvaluateOutput {
 	op := input.OpVariadic
 	operands := []*yaml.Value{}
 	for _, expr := range op.Operands {
-		operand, err := e.EvaluateExpr(ctx, &EvaluateExprInput{Defs: input.Defs, Expr: expr})
-		if err != nil {
-			return nil, fmt.Errorf("fail to EvaluateExpr: %w", err)
+		operand := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: expr})
+		if operand.Status != EvaluateOutput_OK {
+			return operand
 		}
 		operands = append(operands, operand.Value)
 	}
 	switch op.Operator {
 	default:
-		return nil, ErrUnsupportedOperatorVariadic(op.Path, op.Operator)
-	case ast.OpVariadic_OPERATOR_ADD:
-		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 0}
+		return errorUnsupportedOperation(input.Path, op.Operator.String())
+	case ast.OpVariadic_ADD:
+		v := &yaml.Value{Type: yaml.Type_NUM, Num: 0}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_NUM {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_NUM {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			v.Num += operand.Num
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_MUL:
-		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 1}
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_MUL:
+		v := &yaml.Value{Type: yaml.Type_NUM, Num: 1}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_NUM {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_NUM {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			v.Num *= operand.Num
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_AND:
-		v := &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_AND:
+		v := &yaml.Value{Type: yaml.Type_BOOL, Bool: false}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_BOOL {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_BOOL {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			v.Bool = v.Bool && operand.Bool
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_OR:
-		v := &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_OR:
+		v := &yaml.Value{Type: yaml.Type_BOOL, Bool: true}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_BOOL {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_BOOL {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			v.Bool = v.Bool || operand.Bool
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_CAT:
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_CAT:
 		if len(operands) == 0 {
-			return &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: ""}}, nil
+			return &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_STR, Str: ""}}
 		}
-		cat := &yaml.Value{Type: yaml.Type_TYPE_STR, Str: ""}
+		cat := &yaml.Value{Type: yaml.Type_STR, Str: ""}
 		for _, o := range operands {
-			if o.Type != yaml.Type_TYPE_STR {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_STR}, o.Type)
+			if o.Type != yaml.Type_STR {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_STR}, o.Type)
 			}
 			cat.Str += o.Str
 		}
-		return &EvaluateOutput{Value: cat}, nil
-	case ast.OpVariadic_OPERATOR_MAX:
-		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Inf(-1)}
+		return &EvaluateOutput{Value: cat}
+	case ast.OpVariadic_MAX:
+		v := &yaml.Value{Type: yaml.Type_NUM, Num: math.Inf(-1)}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_NUM {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_NUM {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			if v.Num < operand.Num {
 				v.Num = operand.Num
 			}
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_MIN:
-		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Inf(1)}
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_MIN:
+		v := &yaml.Value{Type: yaml.Type_NUM, Num: math.Inf(1)}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_TYPE_NUM {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
+			if operand.Type != yaml.Type_NUM {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Type)
 			}
 			if v.Num > operand.Num {
 				v.Num = operand.Num
 			}
 		}
-		return &EvaluateOutput{Value: v}, nil
-	case ast.OpVariadic_OPERATOR_MERGE:
-		v := &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: map[string]*yaml.Value{}}
+		return &EvaluateOutput{Value: v}
+	case ast.OpVariadic_MERGE:
+		v := &yaml.Value{Type: yaml.Type_OBJ, Obj: map[string]*yaml.Value{}}
 		for _, o := range operands {
-			if o.Type != yaml.Type_TYPE_OBJ {
-				return nil, ast.ErrUnexpectedType(op.Path, []yaml.Type{yaml.Type_TYPE_OBJ}, o.Type)
+			if o.Type != yaml.Type_OBJ {
+				return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_OBJ}, o.Type)
 			}
 			for k, val := range o.Obj {
 				v.Obj[k] = val
 			}
 		}
-		return &EvaluateOutput{Value: v}, nil
+		return &EvaluateOutput{Value: v}
 	}
 }
 
-func equal(path *ast.Path, l, r *yaml.Value) (bool, error) {
+func equal(path *ast.Path, l, r *yaml.Value) *EvaluateOutput {
+	falseValue := &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: false}}
+	trueValue := &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: true}}
 	switch {
 	default:
-		return false, fmt.Errorf("unsupported eq types: %v: %v and %v", path.Format(), l.Type, r.Type)
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR, yaml.Type_ARR, yaml.Type_OBJ}, l.Type)
 	case l.Type != r.Type:
-		return false, nil
-	case l.Type == yaml.Type_TYPE_NUM:
-		return l.Num == r.Num, nil
-	case l.Type == yaml.Type_TYPE_BOOL:
-		return l.Bool == r.Bool, nil
-	case l.Type == yaml.Type_TYPE_STR:
-		return l.Str == r.Str, nil
-	case l.Type == yaml.Type_TYPE_ARR:
+		return falseValue
+	case l.Type == yaml.Type_NUM:
+		return &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Num == r.Num}}
+	case l.Type == yaml.Type_BOOL:
+		return &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Bool == r.Bool}}
+	case l.Type == yaml.Type_STR:
+		return &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Str == r.Str}}
+	case l.Type == yaml.Type_ARR:
 		if len(l.Arr) != len(r.Arr) {
-			return false, nil
+			return falseValue
 		}
 		for i, l := range l.Arr {
 			r := r.Arr[i]
-			eq, err := equal(path, l, r)
-			if err != nil {
-				return false, err
+			eq := equal(path, l, r)
+			if eq.Status != EvaluateOutput_OK {
+				return eq
 			}
-			return eq, nil
-		}
-		return true, nil
-	case l.Type == yaml.Type_TYPE_OBJ:
-		for k := range l.Obj {
-			if _, ok := r.Obj[k]; !ok {
-				return false, nil
+			if !eq.Value.Bool {
+				return falseValue
 			}
 		}
-		for k := range r.Obj {
-			if _, ok := l.Obj[k]; !ok {
-				return false, nil
-			}
+		return trueValue
+	case l.Type == yaml.Type_OBJ:
+		lk, rk := l.Keys(), r.Keys()
+		slices.Sort(lk)
+		slices.Sort(rk)
+		if !slices.Equal(lk, rk) {
+			return falseValue
 		}
 		for k, l := range l.Obj {
 			r := r.Obj[k]
-			eq, err := equal(path, l, r)
-			if err != nil {
-				return false, err
+			eq := equal(path, l, r)
+			if eq.Status != EvaluateOutput_OK {
+				return eq
 			}
-			return eq, nil
+			if !eq.Value.Bool {
+				return falseValue
+			}
 		}
-		return true, nil
+		return trueValue
 	}
 }
-func compare(path *ast.Path, l, r *yaml.Value) (int, error) {
+func compare(path *ast.Path, l, r *yaml.Value) *EvaluateOutput {
+	ltValue := &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: -1}}
+	gtValue := &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: 1}}
+	eqValue := &EvaluateOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: 0}}
 	switch {
 	default:
-		return 0, fmt.Errorf("unsupported cmp types: %v: %v and %v", path.Format(), l.Type, r.Type)
-	case l.Type == yaml.Type_TYPE_NUM && r.Type == yaml.Type_TYPE_NUM:
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR, yaml.Type_ARR}, l.Type)
+	case l.Type == yaml.Type_NUM && r.Type == yaml.Type_NUM:
 		if l.Num < r.Num {
-			return -1, nil
+			return ltValue
 		}
 		if l.Num > r.Num {
-			return 1, nil
+			return gtValue
 		}
-		return 0, nil
-	case l.Type == yaml.Type_TYPE_BOOL && r.Type == yaml.Type_TYPE_BOOL:
+		return eqValue
+	case l.Type == yaml.Type_BOOL && r.Type == yaml.Type_BOOL:
 		if !l.Bool && r.Bool {
-			return -1, nil
+			return ltValue
 		}
 		if l.Bool && !r.Bool {
-			return 1, nil
+			return gtValue
 		}
-		return 0, nil
-	case l.Type == yaml.Type_TYPE_STR && r.Type == yaml.Type_TYPE_STR:
+		return eqValue
+	case l.Type == yaml.Type_STR && r.Type == yaml.Type_STR:
 		if l.Str < r.Str {
-			return -1, nil
+			return ltValue
 		}
 		if l.Str > r.Str {
-			return 1, nil
+			return gtValue
 		}
-		return 0, nil
-	case l.Type == yaml.Type_TYPE_ARR && r.Type == yaml.Type_TYPE_ARR:
+		return eqValue
+	case l.Type == yaml.Type_ARR && r.Type == yaml.Type_ARR:
 		for i, l := range l.Arr {
 			r := r.Arr[i]
-			cmp, err := compare(path, l, r)
-			if err != nil {
-				return 0, err
+			cmp := compare(path, l, r)
+			if cmp.Status != EvaluateOutput_OK {
+				return cmp
 			}
-			if cmp != 0 {
-				return cmp, nil
+			if cmp.Value.Num != 0 {
+				return cmp
 			}
 		}
 		if len(l.Arr) < len(r.Arr) {
-			return -1, nil
+			return ltValue
 		}
 		if len(l.Arr) > len(r.Arr) {
-			return 1, nil
+			return gtValue
 		}
-		return 0, nil
+		return eqValue
 	}
 }
-
-func ExprOfValue(v *yaml.Value) *ast.Expr {
-	return &ast.Expr{Kind: ast.Expr_KIND_VAL_JSON, ValJson: &ast.ValJson{Json: v}}
+func exprOfValue(v *yaml.Value) *ast.Expr {
+	return &ast.Expr{Kind: ast.Expr_VAL_JSON, ValJson: &ast.ValJson{Json: v}}
+}
+func errorUnsupportedExpr(expr *ast.Expr) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_UNSUPPORTED_EXPR_ERROR,
+		ErrorMessage: fmt.Sprintf("unsupported expr kind: %v", expr.Kind),
+		ErrorPath:    expr.Path,
+	}
+}
+func errorUnexpectedType(path *ast.Path, want []yaml.Type, got yaml.Type) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_UNEXPECTED_TYPE_ERROR,
+		ErrorMessage: fmt.Sprintf("unexpected type: want %v, got %v", want, got),
+		ErrorPath:    path,
+	}
+}
+func errorArithmeticError(path *ast.Path, message string) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_ARITHMETIC_ERROR,
+		ErrorMessage: fmt.Sprintf("arithmetic error: %v", message),
+		ErrorPath:    path,
+	}
+}
+func errorIndexOutOfBounds(path *ast.Path, begin, end, index int) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_INDEX_OUT_OF_BOUNDS_ERROR,
+		ErrorMessage: fmt.Sprintf("index out of bounds: %v not in [%v, %v)", index, begin, end),
+		ErrorPath:    path,
+	}
+}
+func errorKeyNotFound(path *ast.Path, keys []string, key string) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_KEY_NOT_FOUND_ERROR,
+		ErrorMessage: fmt.Sprintf("key not found: %v not in {%v}", key, strings.Join(keys, ",")),
+		ErrorPath:    path,
+	}
+}
+func errorReferenceNotFound(path *ast.Path, ref string) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_REFERENCE_NOT_FOUND_ERROR,
+		ErrorMessage: fmt.Sprintf("reference not found: %v", ref),
+		ErrorPath:    path,
+	}
+}
+func errorCasesNotExhaustive(path *ast.Path) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_CASES_NOT_EXHAUSTIVE_ERROR,
+		ErrorMessage: fmt.Sprintf("cases not exhaustive: %v", path.Format()),
+		ErrorPath:    path,
+	}
+}
+func errorUnsupportedOperation(path *ast.Path, op string) *EvaluateOutput {
+	return &EvaluateOutput{
+		Status:       EvaluateOutput_UNSUPPORTED_OPERATION_ERROR,
+		ErrorMessage: fmt.Sprintf("unsupported operation: %v", op),
+		ErrorPath:    path,
+	}
 }

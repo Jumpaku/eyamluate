@@ -2,18 +2,17 @@ syntax = "proto3";
 
 package yaml;
 
-option go_package = "github.com/Jumpaku/eyamlate/golang/pb/yaml";
+option go_package = "github.com/Jumpaku/eyamlate/golang/yaml";
 
 enum Type {
-  TYPE_UNSPECIFIED = 0;
-  TYPE_NULL = 1;
-  TYPE_BOOL = 2;
-  TYPE_NUM = 3;
-  TYPE_STR = 4;
-  TYPE_ARR = 5;
-  TYPE_OBJ = 6;
+  UNSPECIFIED = 0;
+  NULL = 1;
+  BOOL = 2;
+  NUM = 3;
+  STR = 4;
+  ARR = 5;
+  OBJ = 6;
 }
-
 message Value {
   Type type = 1;
   bool bool = 2;

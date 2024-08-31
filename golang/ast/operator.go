@@ -6,22 +6,22 @@ func (o OpUnary_Operator) KeyName() string {
 	switch o {
 	default:
 		panic(fmt.Sprintf("unexpected OperatorUnary %v", o))
-	case OpUnary_OPERATOR_LEN:
+	case OpUnary_LEN:
 		return "len"
-	case OpUnary_OPERATOR_NOT:
+	case OpUnary_NOT:
 		return "not"
-	case OpUnary_OPERATOR_HEAD:
+	case OpUnary_HEAD:
 		return "head"
-	case OpUnary_OPERATOR_TAIL:
+	case OpUnary_TAIL:
 		return "tail"
-	case OpUnary_OPERATOR_LAST:
+	case OpUnary_LAST:
 		return "last"
-	case OpUnary_OPERATOR_INIT:
+	case OpUnary_INIT:
 		return "init"
-	case OpUnary_OPERATOR_FLAT:
+	case OpUnary_FLAT:
 		return "flat"
-	case OpUnary_OPERATOR_ERROR:
-		return "error"
+	case OpUnary_ABORT:
+		return "abort"
 	}
 }
 
@@ -29,25 +29,25 @@ func (o OpBinary_Operator) KeyName() string {
 	switch o {
 	default:
 		panic(fmt.Sprintf("unexpected OperatorBinary %v", o))
-	case OpBinary_OPERATOR_SUB:
+	case OpBinary_SUB:
 		return "sub"
-	case OpBinary_OPERATOR_DIV:
+	case OpBinary_DIV:
 		return "mul"
-	case OpBinary_OPERATOR_MOD:
+	case OpBinary_MOD:
 		return "mod"
-	case OpBinary_OPERATOR_EQ:
+	case OpBinary_EQ:
 		return "eq"
-	case OpBinary_OPERATOR_NEQ:
+	case OpBinary_NEQ:
 		return "neq"
-	case OpBinary_OPERATOR_LT:
+	case OpBinary_LT:
 		return "lt"
-	case OpBinary_OPERATOR_LTE:
+	case OpBinary_LTE:
 		return "lte"
-	case OpBinary_OPERATOR_GT:
+	case OpBinary_GT:
 		return "gt"
-	case OpBinary_OPERATOR_GTE:
+	case OpBinary_GTE:
 		return "gte"
-	case OpBinary_OPERATOR_CMP:
+	case OpBinary_CMP:
 		return "cmp"
 	}
 }
@@ -56,21 +56,21 @@ func (o OpVariadic_Operator) KeyName() string {
 	switch o {
 	default:
 		panic(fmt.Sprintf("unexpected OperatorVariadic %v", o))
-	case OpVariadic_OPERATOR_ADD:
+	case OpVariadic_ADD:
 		return "add"
-	case OpVariadic_OPERATOR_MUL:
+	case OpVariadic_MUL:
 		return "mul"
-	case OpVariadic_OPERATOR_AND:
+	case OpVariadic_AND:
 		return "and"
-	case OpVariadic_OPERATOR_OR:
+	case OpVariadic_OR:
 		return "or"
-	case OpVariadic_OPERATOR_CAT:
+	case OpVariadic_CAT:
 		return "cat"
-	case OpVariadic_OPERATOR_MIN:
+	case OpVariadic_MIN:
 		return "min"
-	case OpVariadic_OPERATOR_MAX:
+	case OpVariadic_MAX:
 		return "max"
-	case OpVariadic_OPERATOR_MERGE:
+	case OpVariadic_MERGE:
 		return "merge"
 	}
 }

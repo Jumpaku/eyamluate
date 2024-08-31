@@ -194,7 +194,7 @@ definitions:
         "$ref": "#/definitions/Expr"
       keys:
         "$ref": "#/definitions/Expr"
-      error:
+      abort:
         "$ref": "#/definitions/Expr"
 
   OpBinary:
@@ -230,7 +230,6 @@ definitions:
         "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
       cmp:
         "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
-
 
   OpVariadic:
     type: object

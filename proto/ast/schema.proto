@@ -4,7 +4,7 @@ package ast;
 
 import "yaml/value.proto";
 
-option go_package = "github.com/Jumpaku/eyamlate/golang/pb/ast";
+option go_package = "github.com/Jumpaku/eyamlate/golang/ast";
 
 message Path {
   message Pos {
@@ -16,7 +16,6 @@ message Path {
 message Eval {
   repeated FunDef where = 1;
   Expr eval = 2;
-  Path path = 20;
 }
 
 message FunDef {
@@ -28,19 +27,19 @@ message FunDef {
 
 message Expr {
   enum Kind {
-    KIND_UNSPECIFIED = 0;
-    KIND_EVAL = 1;
-    KIND_SCALAR = 2;
-    KIND_NEW_OBJ = 3;
-    KIND_NEW_ARR = 4;
-    KIND_VAL_JSON = 5;
-    KIND_RANGE_ITER = 6;
-    KIND_ELEM_ACCESS = 7;
-    KIND_FUN_CALL = 8;
-    KIND_CASE_BRANCHES = 9;
-    KIND_OP_UNARY = 10;
-    KIND_OP_BINARY = 11;
-    KIND_OP_VARIADIC = 12;
+    UNSPECIFIED = 0;
+    EVAL = 1;
+    SCALAR = 2;
+    NEW_OBJ = 3;
+    NEW_ARR = 4;
+    VAL_JSON = 5;
+    RANGE_ITER = 6;
+    ELEM_ACCESS = 7;
+    FUN_CALL = 8;
+    CASE_BRANCHES = 9;
+    OP_UNARY = 10;
+    OP_BINARY = 11;
+    OP_VARIADIC = 12;
   }
   Kind kind = 1;
   Eval eval = 2;
@@ -55,26 +54,23 @@ message Expr {
   OpUnary op_unary = 11;
   OpBinary op_binary = 12;
   OpVariadic op_variadic = 13;
+  Path path = 20;
 }
 
 message Scalar {
   yaml.Value val = 1;
-  Path path = 20;
 }
 
 message NewObj {
   map<string, Expr> obj = 1;
-  Path path = 20;
 }
 
 message NewArr {
   repeated Expr arr = 1;
-  Path path = 20;
 }
 
 message ValJson {
   yaml.Value json = 1;
-  Path path = 20;
 }
 
 message RangeIter {
@@ -83,83 +79,76 @@ message RangeIter {
   Expr in = 3;
   Expr do = 4;
   Expr if = 5;
-  Path path = 20;
 }
 
 message ElemAccess {
   Expr get = 1;
   Expr from = 2;
-  Path path = 20;
 }
 
 message FunCall {
   string ref = 1;
   map<string, Expr> with = 2;
-  Path path = 20;
 }
 
 message CaseBranches {
   message Branch {
-    bool IsOtherwise = 1;
+    bool is_otherwise = 1;
     Expr when = 2;
     Expr then = 3;
     Expr otherwise = 4;
   }
   repeated Branch branches = 1;
-  Path path = 20;
 }
 
 message OpUnary {
   enum Operator {
-    OPERATOR_UNSPECIFIED = 0;
-    OPERATOR_LEN = 1;
-    OPERATOR_NOT = 2;
-    OPERATOR_HEAD = 3;
-    OPERATOR_TAIL = 4;
-    OPERATOR_LAST = 5;
-    OPERATOR_INIT = 6;
-    OPERATOR_FLAT = 7;
-    OPERATOR_KEYS = 8;
-    OPERATOR_ERROR = 9;
+    UNSPECIFIED = 0;
+    LEN = 1;
+    NOT = 2;
+    HEAD = 3;
+    TAIL = 4;
+    LAST = 5;
+    INIT = 6;
+    FLAT = 7;
+    KEYS = 8;
+    ABORT = 9;
   }
   Operator operator = 1;
-  Expr Operand = 2;
-  Path path = 20;
+  Expr operand = 2;
 }
 
 message OpBinary {
   enum Operator {
-    OPERATOR_UNSPECIFIED = 0;
-    OPERATOR_SUB = 1;
-    OPERATOR_DIV = 2;
-    OPERATOR_MOD = 3;
-    OPERATOR_EQ = 4;
-    OPERATOR_NEQ = 5;
-    OPERATOR_LT = 6;
-    OPERATOR_LTE = 7;
-    OPERATOR_GT = 8;
-    OPERATOR_GTE = 9;
-    OPERATOR_CMP = 10;
+    UNSPECIFIED = 0;
+    SUB = 1;
+    DIV = 2;
+    MOD = 3;
+    EQ = 4;
+    NEQ = 5;
+    LT = 6;
+    LTE = 7;
+    GT = 8;
+    GTE = 9;
+    CMP = 10;
   }
   Operator operator = 1;
   Expr operand_left = 2;
   Expr operand_right = 3;
-  Path path = 20;
 }
 
 message OpVariadic {
   enum Operator {
-    OPERATOR_UNSPECIFIED = 0;
-    OPERATOR_ADD = 1;
-    OPERATOR_MUL = 2;
-    OPERATOR_AND = 3;
-    OPERATOR_OR = 4;
-    OPERATOR_CAT = 5;
-    OPERATOR_MIN = 6;
-    OPERATOR_MAX = 7;
-    OPERATOR_MERGE = 8;
+    UNSPECIFIED = 0;
+    ADD = 1;
+    MUL = 2;
+    AND = 3;
+    OR = 4;
+    CAT = 5;
+    MIN = 6;
+    MAX = 7;
+    MERGE = 8;
   }
   Operator operator = 1;
   repeated Expr operands = 2;
-  Path path = 20;
 }

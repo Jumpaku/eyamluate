@@ -1,150 +1,187 @@
 package ast
 
 import (
-	context "context"
+	_ "embed"
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/pb/yaml"
+	"github.com/Jumpaku/eyamlate/golang/yaml"
+	"slices"
 	"strings"
 )
 
-var _ ParserServer = (*Parser)(nil)
-
-type Parser struct{}
-
-func (p *Parser) mustEmbedUnimplementedParserServer() {
-	//TODO implement me
-	panic("implement me")
+type Parser interface {
+	Parse(*ParseInput) *ParseOutput
+	ParseExpr(*ParseExprInput) *ParseExprOutput
+	ParseEval(*ParseExprInput) *ParseExprOutput
+	ParseScalar(*ParseExprInput) *ParseExprOutput
+	ParseNewObj(*ParseExprInput) *ParseExprOutput
+	ParseNewArr(*ParseExprInput) *ParseExprOutput
+	ParseValJson(*ParseExprInput) *ParseExprOutput
+	ParseRangeIter(*ParseExprInput) *ParseExprOutput
+	ParseElemAccess(*ParseExprInput) *ParseExprOutput
+	ParseFunCall(*ParseExprInput) *ParseExprOutput
+	ParseCaseBranches(*ParseExprInput) *ParseExprOutput
+	ParseOpUnary(*ParseOpUnaryInput) *ParseExprOutput
+	ParseOpBinary(*ParseOpBinaryInput) *ParseExprOutput
+	ParseOpVariadic(*ParseOpVariadicInput) *ParseExprOutput
 }
 
-func (p *Parser) Parse(ctx context.Context, input *ParseInput) (*ParseOutput, error) {
-	o, err := (&yaml.Unmarshaller{}).Unmarshal(ctx, &yaml.UnmarshalInput{Yaml: input.Source})
-	if err != nil {
-		return nil, fmt.Errorf("fail to unmarshal json: %w", err)
+func NewParser() Parser {
+	return &parser{}
+}
+
+type parser struct{}
+
+var _ Parser = &parser{}
+
+func (p *parser) Parse(input *ParseInput) *ParseOutput {
+	// decode
+	o := yaml.NewDecoder().Decode(&yaml.DecodeInput{Yaml: input.Source})
+	if o.IsError {
+		return &ParseOutput{
+			Status:       ParseOutput_DECODE_ERROR,
+			ErrorMessage: o.ErrorMessage,
+		}
 	}
 
-	return p.ParseEval(ctx, &ParseExprInput{Path: &Path{}, Value: o.Value})
-}
+	// validate
+	if o := NewValidator().Validate(&ValidateInput{Source: input.Source}); o.Status != ValidateOutput_OK {
+		return &ParseOutput{
+			Status:       ParseOutput_VALIDATE_ERROR,
+			ErrorMessage: "validation error",
+		}
+	}
 
-func (p *Parser) ParseExpr(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+	// parse
+	result := p.ParseExpr(&ParseExprInput{Path: &Path{}, Value: o.Value})
+	if result.Code != ParseErrorCode_OK {
+		return &ParseOutput{
+			Status:         ParseOutput_PARSE_ERROR,
+			ErrorMessage:   result.ErrorMessage,
+			ParseErrorCode: result.Code,
+			ParseErrorPath: result.ErrorPath,
+		}
+	}
+	return &ParseOutput{Expr: result.Expr}
+}
+func (p *parser) ParseExpr(input *ParseExprInput) *ParseExprOutput {
 	switch input.Value.Type {
 	default:
-		return nil, ErrUnexpectedType(input.Path, []yaml.Type{yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR, yaml.Type_TYPE_OBJ}, input.Value.Type)
-	case yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR:
-		return p.ParseScalar(ctx, &ParseExprInput{Value: input.Value, Path: input.Path})
-	case yaml.Type_TYPE_OBJ:
+		return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_BOOL, yaml.Type_NUM, yaml.Type_STR, yaml.Type_OBJ}, input.Value.Type)
+	case yaml.Type_BOOL, yaml.Type_NUM, yaml.Type_STR:
+		return p.ParseScalar(&ParseExprInput{Value: input.Value, Path: input.Path})
+	case yaml.Type_OBJ:
 		switch {
 		default:
-			return nil, fmt.Errorf("unsupported keys: %v %v", input.Path.Format(), input.Value.Keys())
-		case hasKeys(input.Value, "eval"):
-			return p.ParseEval(ctx, input)
-		case hasKeys(input.Value, "obj"):
-			return p.ParseNewObj(ctx, input)
-		case hasKeys(input.Value, "arr"):
-			return p.ParseNewArr(ctx, input)
-		case hasKeys(input.Value, "json"):
-			return p.ParseValJson(ctx, input)
-		case hasKeys(input.Value, "for", "in", "do"):
-			return p.ParseRangeIter(ctx, input)
-		case hasKeys(input.Value, "get", "from"):
-			return p.ParseElemAccess(ctx, input)
-		case hasKeys(input.Value, "ref"):
-			return p.ParseFunCall(ctx, input)
-		case hasKeys(input.Value, "cases"):
-			return p.ParseCaseBranches(ctx, input)
-		case hasKeys(input.Value, OpUnary_OPERATOR_LEN.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_LEN})
-		case hasKeys(input.Value, OpUnary_OPERATOR_NOT.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_NOT})
-		case hasKeys(input.Value, OpUnary_OPERATOR_HEAD.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_HEAD})
-		case hasKeys(input.Value, OpUnary_OPERATOR_TAIL.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_TAIL})
-		case hasKeys(input.Value, OpUnary_OPERATOR_LAST.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_LAST})
-		case hasKeys(input.Value, OpUnary_OPERATOR_INIT.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_INIT})
-		case hasKeys(input.Value, OpUnary_OPERATOR_FLAT.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_FLAT})
-		case hasKeys(input.Value, OpUnary_OPERATOR_ERROR.KeyName()):
-			return p.ParseOpUnary(ctx, &ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_OPERATOR_ERROR})
-		case hasKeys(input.Value, OpBinary_OPERATOR_SUB.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_SUB})
-		case hasKeys(input.Value, OpBinary_OPERATOR_DIV.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_DIV})
-		case hasKeys(input.Value, OpBinary_OPERATOR_MOD.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_MOD})
-		case hasKeys(input.Value, OpBinary_OPERATOR_EQ.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_EQ})
-		case hasKeys(input.Value, OpBinary_OPERATOR_NEQ.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_NEQ})
-		case hasKeys(input.Value, OpBinary_OPERATOR_LT.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_LT})
-		case hasKeys(input.Value, OpBinary_OPERATOR_LTE.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_LTE})
-		case hasKeys(input.Value, OpBinary_OPERATOR_GT.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_GT})
-		case hasKeys(input.Value, OpBinary_OPERATOR_GTE.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_GTE})
-		case hasKeys(input.Value, OpBinary_OPERATOR_CMP.KeyName()):
-			return p.ParseOpBinary(ctx, &ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_OPERATOR_CMP})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_ADD.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_ADD})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_MUL.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_MUL})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_AND.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_AND})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_OR.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_OR})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_CAT.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_CAT})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_MIN.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_MIN})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_MAX.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_MAX})
-		case hasKeys(input.Value, OpVariadic_OPERATOR_MERGE.KeyName()):
-			return p.ParseOpVariadic(ctx, &ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OPERATOR_MERGE})
+			return errorUnsupportedKeys(input.Path, "suitable expression not found", input.Value.Keys(), nil, nil)
+		case keysAreMatched(input.Value, []string{"eval"}, []string{"where"}):
+			return p.ParseEval(input)
+		case keysAreMatched(input.Value, []string{"obj"}, nil):
+			return p.ParseNewObj(input)
+		case keysAreMatched(input.Value, []string{"arr"}, nil):
+			return p.ParseNewArr(input)
+		case keysAreMatched(input.Value, []string{"json"}, nil):
+			return p.ParseValJson(input)
+		case keysAreMatched(input.Value, []string{"for", "in", "do"}, []string{"if"}):
+			return p.ParseRangeIter(input)
+		case keysAreMatched(input.Value, []string{"get", "from"}, nil):
+			return p.ParseElemAccess(input)
+		case keysAreMatched(input.Value, []string{"ref"}, nil):
+			return p.ParseFunCall(input)
+		case keysAreMatched(input.Value, []string{"cases"}, nil):
+			return p.ParseCaseBranches(input)
+		case keysAreMatched(input.Value, []string{OpUnary_LEN.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_LEN})
+		case keysAreMatched(input.Value, []string{OpUnary_NOT.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_NOT})
+		case keysAreMatched(input.Value, []string{OpUnary_HEAD.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_HEAD})
+		case keysAreMatched(input.Value, []string{OpUnary_TAIL.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_TAIL})
+		case keysAreMatched(input.Value, []string{OpUnary_LAST.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_LAST})
+		case keysAreMatched(input.Value, []string{OpUnary_INIT.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_INIT})
+		case keysAreMatched(input.Value, []string{OpUnary_FLAT.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_FLAT})
+		case keysAreMatched(input.Value, []string{OpUnary_ABORT.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_ABORT})
+		case keysAreMatched(input.Value, []string{OpBinary_SUB.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_SUB})
+		case keysAreMatched(input.Value, []string{OpBinary_DIV.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_DIV})
+		case keysAreMatched(input.Value, []string{OpBinary_MOD.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_MOD})
+		case keysAreMatched(input.Value, []string{OpBinary_EQ.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_EQ})
+		case keysAreMatched(input.Value, []string{OpBinary_NEQ.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_NEQ})
+		case keysAreMatched(input.Value, []string{OpBinary_LT.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_LT})
+		case keysAreMatched(input.Value, []string{OpBinary_LTE.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_LTE})
+		case keysAreMatched(input.Value, []string{OpBinary_GT.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_GT})
+		case keysAreMatched(input.Value, []string{OpBinary_GTE.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_GTE})
+		case keysAreMatched(input.Value, []string{OpBinary_CMP.KeyName()}, nil):
+			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_CMP})
+		case keysAreMatched(input.Value, []string{OpVariadic_ADD.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_ADD})
+		case keysAreMatched(input.Value, []string{OpVariadic_MUL.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_MUL})
+		case keysAreMatched(input.Value, []string{OpVariadic_AND.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_AND})
+		case keysAreMatched(input.Value, []string{OpVariadic_OR.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_OR})
+		case keysAreMatched(input.Value, []string{OpVariadic_CAT.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_CAT})
+		case keysAreMatched(input.Value, []string{OpVariadic_MIN.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_MIN})
+		case keysAreMatched(input.Value, []string{OpVariadic_MAX.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_MAX})
+		case keysAreMatched(input.Value, []string{OpVariadic_MERGE.KeyName()}, nil):
+			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_MERGE})
 		}
 	}
 }
-
-func (p *Parser) ParseEval(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseEval(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "eval") {
-		return nil, ErrKeyNotFound(input.Path, []string{"eval"})
+	if !keysAreMatched(v, []string{"eval"}, []string{"where"}) {
+		return errorUnsupportedKeys(input.Path, "Eval", v.Keys(), []string{"eval"}, []string{"where"})
 	}
-	eval, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("eval"), Value: v.Obj["eval"]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	eval := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("eval"), Value: v.Obj["eval"]})
+	if eval.Code != ParseErrorCode_OK {
+		return eval
 	}
 	where := []*FunDef{}
 	if w, ok := v.Obj["where"]; ok {
 		path := path.AppendKey("where")
-		if w.Type != yaml.Type_TYPE_ARR {
-			return nil, ErrUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_ARR}, w.Type)
+		if w.Type != yaml.Type_ARR {
+			return errorUnexpectedType(path, []yaml.Type{yaml.Type_ARR}, w.Type)
 		}
 		for pos, v := range w.Arr {
 			path := path.AppendIndex(pos)
-			if !hasKeys(v, "def", "value") {
-				return nil, ErrKeyNotFound(path, []string{"def", "value"})
+			if !keysAreMatched(v, []string{"def", "value"}, []string{"with"}) {
+				return errorUnsupportedKeys(path, "FunDef", v.Keys(), []string{"def", "value"}, []string{"with"})
 			}
 			def := v.Obj["def"]
-			if def.Type != yaml.Type_TYPE_STR {
-				return nil, ErrUnexpectedType(path.AppendKey("def"), []yaml.Type{yaml.Type_TYPE_STR}, w.Type)
+			if def.Type != yaml.Type_STR {
+				return errorUnexpectedType(path.AppendKey("def"), []yaml.Type{yaml.Type_STR}, def.Type)
 			}
-			value, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("value"), Value: v.Obj["value"]})
-			if err != nil {
-				return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+			value := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("value"), Value: v.Obj["value"]})
+			if value.Code != ParseErrorCode_OK {
+				return value
 			}
 			funDef := &FunDef{Def: def.Str, Value: value.Expr}
 			if with, ok := v.Obj["with"]; ok {
-				if with.Type != yaml.Type_TYPE_ARR {
-					return nil, ErrUnexpectedType(path.AppendKey("with"), []yaml.Type{yaml.Type_TYPE_ARR}, with.Type)
+				if with.Type != yaml.Type_ARR {
+					return errorUnexpectedType(path.AppendKey("with"), []yaml.Type{yaml.Type_ARR}, with.Type)
 				}
 				path := path.AppendKey("with")
 				for pos, v := range with.Arr {
-					if v.Type != yaml.Type_TYPE_STR {
-						return nil, ErrUnexpectedType(path.AppendIndex(pos), []yaml.Type{yaml.Type_TYPE_STR}, w.Type)
+					if v.Type != yaml.Type_STR {
+						return errorUnexpectedType(path.AppendIndex(pos), []yaml.Type{yaml.Type_STR}, w.Type)
 					}
 					funDef.With = append(funDef.With, v.Str)
 				}
@@ -152,338 +189,398 @@ func (p *Parser) ParseEval(ctx context.Context, input *ParseExprInput) (*ParseOu
 			where = append(where)
 		}
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind: Expr_KIND_EVAL,
-			Eval: &Eval{Path: path, Where: where, Eval: eval.Expr},
+			Path: path,
+			Kind: Expr_EVAL,
+			Eval: &Eval{Where: where, Eval: eval.Expr},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseScalar(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseScalar(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	switch input.Value.Type {
 	default:
-		return nil, ErrUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR}, v.Type)
-	case yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR:
-		return &ParseOutput{
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_BOOL, yaml.Type_NUM, yaml.Type_STR}, v.Type)
+	case yaml.Type_BOOL, yaml.Type_NUM, yaml.Type_STR:
+		return &ParseExprOutput{
 			Expr: &Expr{
-				Kind:   Expr_KIND_SCALAR,
-				Scalar: &Scalar{Path: path, Val: v},
+				Path:   path,
+				Kind:   Expr_SCALAR,
+				Scalar: &Scalar{Val: v},
 			},
-		}, nil
+		}
 	}
 }
-
-func (p *Parser) ParseNewObj(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseNewObj(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "obj") {
-		return nil, ErrKeyNotFound(path, []string{"obj"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
+	if !keysAreMatched(v, []string{"obj"}, nil) {
+		return errorUnsupportedKeys(input.Path, "NewObj", v.Keys(), []string{"obj"}, nil)
+	}
+	if v.Obj["obj"].Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path.AppendKey("obj"), []yaml.Type{yaml.Type_OBJ}, v.Obj["obj"].Type)
 	}
 	obj := map[string]*Expr{}
 	for key, value := range v.Obj["obj"].Obj {
-		path := path.AppendKey(key)
-		v, err := p.ParseExpr(ctx, &ParseExprInput{Path: path, Value: value})
-		if err != nil {
-			return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+		path := path.AppendKey("obj").AppendKey(key)
+		expr := p.ParseExpr(&ParseExprInput{Path: path, Value: value})
+		if expr.Code != ParseErrorCode_OK {
+			return expr
 		}
-		obj[key] = v.Expr
+		obj[key] = expr.Expr
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:   Expr_KIND_NEW_OBJ,
-			NewObj: &NewObj{Path: path, Obj: obj},
+			Path:   path,
+			Kind:   Expr_NEW_OBJ,
+			NewObj: &NewObj{Obj: obj},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseNewArr(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseNewArr(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "arr") {
-		return nil, ErrKeyNotFound(path, []string{"arr"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
+	if !keysAreMatched(v, []string{"arr"}, nil) {
+		return errorUnsupportedKeys(input.Path, "NewArr", v.Keys(), []string{"arr"}, nil)
+	}
+	if v.Obj["arr"].Type != yaml.Type_ARR {
+		return errorUnexpectedType(path.AppendKey("arr"), []yaml.Type{yaml.Type_ARR}, v.Obj["arr"].Type)
 	}
 	arr := []*Expr{}
 	for pos, v := range v.Obj["arr"].Arr {
-		path := input.Path.AppendIndex(pos)
-		elem, err := p.ParseExpr(ctx, &ParseExprInput{Path: path, Value: v})
-		if err != nil {
-			return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+		path := input.Path.AppendKey("arr").AppendIndex(pos)
+		elem := p.ParseExpr(&ParseExprInput{Path: path, Value: v})
+		if elem.Code != ParseErrorCode_OK {
+			return elem
 		}
 		arr = append(arr, elem.Expr)
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:   Expr_KIND_NEW_ARR,
-			NewArr: &NewArr{Path: path, Arr: arr},
+			Path:   path,
+			Kind:   Expr_NEW_ARR,
+			NewArr: &NewArr{Arr: arr},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseValJson(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseValJson(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "json") {
-		return nil, ErrKeyNotFound(path, []string{"json"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
 	}
-	return &ParseOutput{
+	if !keysAreMatched(v, []string{"json"}, nil) {
+		return errorUnsupportedKeys(input.Path, "ValJson", v.Keys(), []string{"json"}, nil)
+	}
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:    Expr_KIND_VAL_JSON,
-			ValJson: &ValJson{Path: path, Json: v.Obj["json"]},
+			Path:    path,
+			Kind:    Expr_VAL_JSON,
+			ValJson: &ValJson{Json: v.Obj["json"]},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseRangeIter(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseRangeIter(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "for", "in", "do") {
-		return nil, ErrKeyNotFound(path, []string{"for", "in", "do"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
 	}
-	rangeIter := &RangeIter{Path: path}
+	if !keysAreMatched(v, []string{"for", "in", "do"}, []string{"if"}) {
+		return errorUnsupportedKeys(input.Path, "RangeIter", v.Keys(), []string{"for", "in", "do"}, []string{"if"})
+	}
+	rangeIter := &RangeIter{}
 	{
 		v := v.Obj["for"]
 		path := path.AppendKey("for")
-		if v.Type != yaml.Type_TYPE_ARR {
-			return nil, ErrUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_ARR}, v.Type)
+		if v.Type != yaml.Type_ARR {
+			return errorUnexpectedType(path, []yaml.Type{yaml.Type_ARR}, v.Type)
 		}
 		if len(v.Arr) != 2 {
-			return nil, ErrUnexpectedLength(path, "= 2", len(v.Arr))
+			return errorUnexpectedLength(path, len(v.Arr), "= 2")
 		}
-		if v.Arr[0].Type != yaml.Type_TYPE_STR {
-			return nil, ErrUnexpectedType(path.AppendIndex(0), []yaml.Type{yaml.Type_TYPE_STR}, v.Type)
+		if v.Arr[0].Type != yaml.Type_STR {
+			return errorUnexpectedType(path.AppendIndex(0), []yaml.Type{yaml.Type_STR}, v.Type)
 		}
-		if v.Arr[1].Type != yaml.Type_TYPE_STR {
-			return nil, ErrUnexpectedType(path.AppendIndex(1), []yaml.Type{yaml.Type_TYPE_STR}, v.Type)
+		if v.Arr[1].Type != yaml.Type_STR {
+			return errorUnexpectedType(path.AppendIndex(1), []yaml.Type{yaml.Type_STR}, v.Type)
 		}
 		rangeIter.ForPos, rangeIter.ForVal = v.Arr[0].Str, v.Arr[1].Str
 	}
-	in, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("in"), Value: v.Obj["in"]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
-	}
-	rangeIter.In = in.Expr
-	do, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("do"), Value: v.Obj["do"]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
-	}
-	rangeIter.Do = do.Expr
-	if v, ok := v.Obj["if"]; ok {
-		if_, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("if"), Value: v})
-		if err != nil {
-			return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	{
+		in := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("in"), Value: v.Obj["in"]})
+		if in.Code != ParseErrorCode_OK {
+			return in
 		}
-		rangeIter.If = if_.Expr
+		rangeIter.In = in.Expr
 	}
-	return &ParseOutput{
+	{
+		do := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("do"), Value: v.Obj["do"]})
+		if do.Code != ParseErrorCode_OK {
+			return do
+		}
+		rangeIter.Do = do.Expr
+	}
+	{
+		if v, ok := v.Obj["if"]; ok {
+			if_ := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("if"), Value: v})
+			if if_.Code != ParseErrorCode_OK {
+				return if_
+			}
+			rangeIter.If = if_.Expr
+		}
+	}
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:      Expr_KIND_RANGE_ITER,
+			Path:      path,
+			Kind:      Expr_RANGE_ITER,
 			RangeIter: rangeIter,
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseElemAccess(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseElemAccess(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "get", "from") {
-		return nil, ErrKeyNotFound(path, []string{"get", "from"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
 	}
-	var err error
-	get, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("get"), Value: v.Obj["get"]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	if !keysAreMatched(v, []string{"get", "from"}, nil) {
+		return errorUnsupportedKeys(input.Path, "ElemAccess", v.Keys(), []string{"get", "from"}, nil)
 	}
-	from, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("from"), Value: v.Obj["from"]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	get := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("get"), Value: v.Obj["get"]})
+	if get.Code != ParseErrorCode_OK {
+		return get
 	}
-	return &ParseOutput{
+	from := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("from"), Value: v.Obj["from"]})
+	if from.Code != ParseErrorCode_OK {
+		return from
+	}
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:       Expr_KIND_ELEM_ACCESS,
-			ElemAccess: &ElemAccess{Path: path, Get: get.Expr, From: from.Expr},
+			Path:       path,
+			Kind:       Expr_ELEM_ACCESS,
+			ElemAccess: &ElemAccess{Get: get.Expr, From: from.Expr},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseFunCall(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseFunCall(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "ref") {
-		return nil, ErrKeyNotFound(path, []string{"ref"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
+	if !keysAreMatched(v, []string{"ref"}, []string{"with"}) {
+		return errorUnsupportedKeys(input.Path, "FunCall", v.Keys(), []string{"ref"}, []string{"with"})
 	}
 	ref := v.Obj["ref"]
-	if ref.Type != yaml.Type_TYPE_STR {
-		return nil, ErrUnexpectedType(path.AppendKey("ref"), []yaml.Type{yaml.Type_TYPE_STR}, ref.Type)
+	if ref.Type != yaml.Type_STR {
+		return errorUnexpectedType(path.AppendKey("ref"), []yaml.Type{yaml.Type_STR}, ref.Type)
 	}
-	funCall := &FunCall{Path: path, Ref: ref.Str}
+	funCall := &FunCall{Ref: ref.Str}
 	if with, ok := v.Obj["with"]; ok {
 		path := path.AppendKey("with")
-		if with.Type != yaml.Type_TYPE_OBJ {
-			return nil, ErrUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_OBJ}, with.Type)
+		if with.Type != yaml.Type_OBJ {
+			return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, with.Type)
 		}
 		funCall.With = map[string]*Expr{}
 		for k, v := range v.Obj {
-			expr, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey(k), Value: v})
-			if err != nil {
-				return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+			expr := p.ParseExpr(&ParseExprInput{Path: path.AppendKey(k), Value: v})
+			if expr.Code != ParseErrorCode_OK {
+				return expr
 			}
 			funCall.With[k] = expr.Expr
 		}
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:    Expr_KIND_FUN_CALL,
+			Path:    path,
+			Kind:    Expr_FUN_CALL,
 			FunCall: funCall,
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseCaseBranches(ctx context.Context, input *ParseExprInput) (*ParseOutput, error) {
+func (p *parser) ParseCaseBranches(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
-	if !hasKeys(v, "cases") {
-		return nil, ErrKeyNotFound(input.Path, []string{"cases"})
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
+	if !keysAreMatched(v, []string{"cases"}, nil) {
+		return errorUnsupportedKeys(input.Path, "CaseBranches", v.Keys(), []string{"cases"}, nil)
 	}
 	cases := v.Obj["cases"]
-	if cases.Type != yaml.Type_TYPE_ARR {
-		return nil, ErrUnexpectedType(path.AppendKey("cases"), []yaml.Type{yaml.Type_TYPE_ARR}, cases.Type)
+	if cases.Type != yaml.Type_ARR {
+		return errorUnexpectedType(path.AppendKey("cases"), []yaml.Type{yaml.Type_ARR}, cases.Type)
 	}
-	casesBranches := &CaseBranches{Path: path}
+	casesBranches := &CaseBranches{}
 	for i, v := range cases.Arr {
 		path := path.AppendIndex(i)
 		switch {
 		default:
-			return nil, fmt.Errorf("unsupported keys: %v: want [when,then] or [otherwise]: got [%v]", input.Path.AppendIndex(i), strings.Join(v.Keys(), ","))
-		case hasKeys(v, "otherwise"):
-			otherwise, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("otherwise"), Value: v.Obj["otherwise"]})
-			if err != nil {
-				return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+			if _, ok := v.Obj["otherwise"]; !ok {
+				if !keysAreMatched(v, []string{"otherwise"}, nil) {
+					return errorUnsupportedKeys(path, "CaseBranches", v.Keys(), []string{"otherwise"}, nil)
+				}
+			}
+			return errorUnsupportedKeys(path, "CaseBranches", v.Keys(), []string{"when", "then"}, nil)
+		case !keysAreMatched(v, []string{"otherwise"}, nil):
+			otherwise := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("otherwise"), Value: v.Obj["otherwise"]})
+			if otherwise.Code != ParseErrorCode_OK {
+				return otherwise
 			}
 			casesBranches.Branches = append(casesBranches.Branches, &CaseBranches_Branch{Otherwise: otherwise.Expr})
-		case hasKeys(v, "when", "then"):
-			when, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("when"), Value: v.Obj["when"]})
-			if err != nil {
-				return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+		case !keysAreMatched(v, []string{"when", "then"}, nil):
+			when := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("when"), Value: v.Obj["when"]})
+			if when.Code != ParseErrorCode_OK {
+				return when
 			}
-			then, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey("then"), Value: v.Obj["then"]})
-			if err != nil {
-				return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+			then := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("then"), Value: v.Obj["then"]})
+			if then.Code != ParseErrorCode_OK {
+				return then
 			}
 			casesBranches.Branches = append(casesBranches.Branches, &CaseBranches_Branch{When: when.Expr, Then: then.Expr})
 		}
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:         Expr_KIND_CASE_BRANCHES,
+			Path:         path,
+			Kind:         Expr_CASE_BRANCHES,
 			CaseBranches: casesBranches,
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseOpUnary(ctx context.Context, input *ParseOpUnaryInput) (*ParseOutput, error) {
+func (p *parser) ParseOpUnary(input *ParseOpUnaryInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
 	operator := input.Operator.KeyName()
-	if !hasKeys(v, operator) {
-		return nil, ErrKeyNotFound(path, []string{operator})
+	if !keysAreMatched(v, []string{operator}, nil) {
+		return errorUnsupportedKeys(input.Path, fmt.Sprintf("OpUnary<%v>", operator), v.Keys(), []string{operator}, nil)
 	}
-	operand, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey(operator), Value: v.Obj[operator]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	operand := p.ParseExpr(&ParseExprInput{Path: path.AppendKey(operator), Value: v.Obj[operator]})
+	if operand.Code != ParseErrorCode_OK {
+		return operand
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:    Expr_KIND_OP_UNARY,
-			OpUnary: &OpUnary{Path: path, Operator: input.Operator, Operand: operand.Expr},
+			Path:    path,
+			Kind:    Expr_OP_UNARY,
+			OpUnary: &OpUnary{Operator: input.Operator, Operand: operand.Expr},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseOpBinary(ctx context.Context, input *ParseOpBinaryInput) (*ParseOutput, error) {
+func (p *parser) ParseOpBinary(input *ParseOpBinaryInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
 	operator := input.Operator.KeyName()
-	if !hasKeys(v, operator) {
-		return nil, ErrKeyNotFound(path, []string{operator})
+	if !keysAreMatched(v, []string{operator}, nil) {
+		return errorUnsupportedKeys(input.Path, fmt.Sprintf("OpBinary<%v>", operator), v.Keys(), []string{operator}, nil)
 	}
 	os := v.Obj[operator]
-	if os.Type != yaml.Type_TYPE_ARR {
-		return nil, ErrUnexpectedType(path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_ARR}, os.Type)
+	if os.Type != yaml.Type_ARR {
+		return errorUnexpectedType(path.AppendKey(operator), []yaml.Type{yaml.Type_ARR}, os.Type)
 	}
 	if len(os.Arr) != 2 {
-		return nil, ErrUnexpectedLength(path.AppendKey(operator), "= 2", len(os.Arr))
+		return errorUnexpectedLength(path.AppendKey(operator), len(os.Arr), "= 2")
 	}
-	l, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey(operator).AppendIndex(0), Value: os.Arr[0]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	l := p.ParseExpr(&ParseExprInput{Path: path.AppendKey(operator).AppendIndex(0), Value: os.Arr[0]})
+	if l.Code != ParseErrorCode_OK {
+		return l
 	}
-	r, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendKey(operator).AppendIndex(1), Value: os.Arr[1]})
-	if err != nil {
-		return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+	r := p.ParseExpr(&ParseExprInput{Path: path.AppendKey(operator).AppendIndex(1), Value: os.Arr[1]})
+	if r.Code != ParseErrorCode_OK {
+		return r
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:     Expr_KIND_OP_BINARY,
-			OpBinary: &OpBinary{Path: path, Operator: input.Operator, OperandLeft: l.Expr, OperandRight: r.Expr},
+			Path:     path,
+			Kind:     Expr_OP_BINARY,
+			OpBinary: &OpBinary{Operator: input.Operator, OperandLeft: l.Expr, OperandRight: r.Expr},
 		},
-	}, nil
+	}
 }
-
-func (p *Parser) ParseOpVariadic(ctx context.Context, input *ParseOpVariadicInput) (*ParseOutput, error) {
+func (p *parser) ParseOpVariadic(input *ParseOpVariadicInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
+	if v.Type != yaml.Type_OBJ {
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_OBJ}, v.Type)
+	}
 	operator := input.Operator.KeyName()
-	if !hasKeys(v, operator) {
-		return nil, ErrKeyNotFound(path, []string{operator})
+	if !keysAreMatched(v, []string{operator}, nil) {
+		return errorUnsupportedKeys(input.Path, fmt.Sprintf("OpVariadic<%v>", operator), v.Keys(), []string{operator}, nil)
 	}
 	os := v.Obj[operator]
-	if os.Type != yaml.Type_TYPE_ARR {
-		return nil, ErrUnexpectedType(path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_ARR}, os.Type)
+	if os.Type != yaml.Type_ARR {
+		return errorUnexpectedType(path.AppendKey(operator), []yaml.Type{yaml.Type_ARR}, os.Type)
 	}
-	operation := &OpVariadic{Path: path, Operator: input.Operator}
+	operation := &OpVariadic{Operator: input.Operator}
 	for i, v := range os.Arr {
 		path := input.Path.AppendKey(operator)
-		operand, err := p.ParseExpr(ctx, &ParseExprInput{Path: path.AppendIndex(i), Value: v})
-		if err != nil {
-			return nil, fmt.Errorf("fail to ParseExpr: %w", err)
+		operand := p.ParseExpr(&ParseExprInput{Path: path.AppendIndex(i), Value: v})
+		if operand.Code != ParseErrorCode_OK {
+			return operand
 		}
 		operation.Operands = append(operation.Operands, operand.Expr)
 	}
-	return &ParseOutput{
+	return &ParseExprOutput{
 		Expr: &Expr{
-			Kind:       Expr_KIND_OP_VARIADIC,
+			Path:       path,
+			Kind:       Expr_OP_VARIADIC,
 			OpVariadic: operation,
 		},
-	}, nil
+	}
 }
 
-func hasKeys(v *yaml.Value, keys ...string) bool {
-	if v.Type != yaml.Type_TYPE_OBJ {
-		return false
+func errorUnexpectedType(path *Path, want []yaml.Type, got yaml.Type) *ParseExprOutput {
+	return &ParseExprOutput{
+		Code:         ParseErrorCode_UNEXPECTED_TYPE,
+		ErrorPath:    path,
+		ErrorMessage: fmt.Sprintf("unexpected type: want %v, got %v", want, got),
+	}
+}
+func errorUnsupportedKeys(path *Path, message string, got []string, required []string, optional []string) *ParseExprOutput {
+	return &ParseExprOutput{
+		Code:      ParseErrorCode_UNSUPORTED_KEYS,
+		ErrorPath: path,
+		ErrorMessage: fmt.Sprintf("unexpected key: %v: required [%v], optional [%v], got [%v]",
+			message,
+			strings.Join(required, ","),
+			strings.Join(optional, ","),
+			strings.Join(got, ","),
+		),
+	}
+}
+func errorUnexpectedLength(path *Path, got int, want string) *ParseExprOutput {
+	return &ParseExprOutput{
+		Code:         ParseErrorCode_UNEXPECTED_LENGTH,
+		ErrorPath:    path,
+		ErrorMessage: fmt.Sprintf("unexpected length: want %q, got %v", want, got),
+	}
+}
+func keysAreMatched(v *yaml.Value, required []string, optional []string) bool {
+	keys := v.Keys()
+	for _, k := range required {
+		if !slices.Contains(keys, k) {
+			return false
+		}
 	}
 	for _, k := range keys {
-		if _, ok := v.Obj[k]; !ok {
+		if !slices.Contains(append(append([]string{}, required...), optional...), k) {
 			return false
 		}
 	}
 	return true
-}
-
-func ErrUnexpectedType(path *Path, want []yaml.Type, got yaml.Type) error {
-	w := []string{}
-	for _, t := range want {
-		w = append(w, t.String())
-	}
-	return fmt.Errorf("unexpected type: %q: want [%q]: got %q", path.Format(), strings.Join(w, ","), got)
-}
-
-func ErrKeyNotFound(path *Path, want []string) error {
-	return fmt.Errorf("key not found: %q: want [%v]", path.Format(), strings.Join(want, ","))
-}
-
-func ErrUnexpectedLength(path *Path, want string, got int) error {
-	return fmt.Errorf("unexpected length: %q: want %q: got %v", path.Format(), want, got)
 }
