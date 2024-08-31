@@ -46,23 +46,19 @@ type validator struct {
 var _ Validator = &validator{}
 
 func (v *validator) Validate(input *ValidateInput) *ValidateOutput {
-	var (
-		sourceJSON any
-	)
-	{
-		b, err := yaml.YAMLToJSON([]byte(input.Source))
-		if err != nil {
-			return &ValidateOutput{
-				Status:       ValidateOutput_SCHEMA_ERROR,
-				ErrorMessage: fmt.Sprintf("fail to convert yaml to json: %+v", err),
-			}
+	b, err := yaml.YAMLToJSON([]byte(input.Source))
+	if err != nil {
+		return &ValidateOutput{
+			Status:       ValidateOutput_YAML_ERROR,
+			ErrorMessage: fmt.Sprintf("fail to convert yaml to json: %+v", err),
 		}
-		sourceJSON, err = jsonschema.UnmarshalJSON(bytes.NewBuffer(b))
-		if err != nil {
-			return &ValidateOutput{
-				Status:       ValidateOutput_SCHEMA_ERROR,
-				ErrorMessage: fmt.Sprintf("fail to decode json: %+v", err),
-			}
+	}
+
+	sourceJSON, err := jsonschema.UnmarshalJSON(bytes.NewBuffer(b))
+	if err != nil {
+		return &ValidateOutput{
+			Status:       ValidateOutput_YAML_ERROR,
+			ErrorMessage: fmt.Sprintf("fail to decode json: %+v", err),
 		}
 	}
 
@@ -72,5 +68,6 @@ func (v *validator) Validate(input *ValidateInput) *ValidateOutput {
 			ErrorMessage: fmt.Sprintf("validation error: %+v", err),
 		}
 	}
+
 	return &ValidateOutput{Status: ValidateOutput_OK}
 }

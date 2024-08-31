@@ -15,7 +15,7 @@ message ValidateInput {
 message ValidateOutput {
   enum Status {
     OK = 0;
-    SCHEMA_ERROR = 1;
+    YAML_ERROR = 1;
     VALIDATION_ERROR = 2;
   }
   Status status = 1;

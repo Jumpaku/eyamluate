@@ -14,13 +14,13 @@ type Evaluator interface {
 	EvaluateExpr(*EvaluateExprInput) *EvaluateOutput
 	EvaluateEval(*EvaluateEvalInput) *EvaluateOutput
 	EvaluateScalar(*EvaluateScalarInput) *EvaluateOutput
-	EvaluateNewObj(*EvaluateNewObjInput) *EvaluateOutput
-	EvaluateNewArr(*EvaluateNewArrInput) *EvaluateOutput
-	EvaluateValJson(*EvaluateValJsonInput) *EvaluateOutput
+	EvaluateObj(*EvaluateObjInput) *EvaluateOutput
+	EvaluateArr(*EvaluateArrInput) *EvaluateOutput
+	EvaluateJson(*EvaluateJsonInput) *EvaluateOutput
 	EvaluateRangeIter(*EvaluateRangeIterInput) *EvaluateOutput
-	EvaluateElemAccess(*EvaluateElemAccessInput) *EvaluateOutput
+	EvaluateGetElem(*EvaluateGetElemInput) *EvaluateOutput
 	EvaluateFunCall(*EvaluateFunCallInput) *EvaluateOutput
-	EvaluateCaseBranches(*EvaluateCaseBranchesInput) *EvaluateOutput
+	EvaluateCases(*EvaluateCasesInput) *EvaluateOutput
 	EvaluateOpUnary(*EvaluateOpUnaryInput) *EvaluateOutput
 	EvaluateOpBinary(*EvaluateOpBinaryInput) *EvaluateOutput
 	EvaluateOpVariadic(*EvaluateOpVariadicInput) *EvaluateOutput
@@ -40,20 +40,20 @@ func (e *BasicEvaluator) EvaluateExpr(input *EvaluateExprInput) *EvaluateOutput 
 		return errorUnsupportedExpr(input.Expr)
 	case ast.Expr_SCALAR:
 		return e.EvaluateScalar(&EvaluateScalarInput{Path: input.Expr.Path, Defs: input.Defs, Scalar: input.Expr.Scalar})
-	case ast.Expr_NEW_OBJ:
-		return e.EvaluateNewObj(&EvaluateNewObjInput{Path: input.Expr.Path, Defs: input.Defs, NewObj: input.Expr.NewObj})
-	case ast.Expr_NEW_ARR:
-		return e.EvaluateNewArr(&EvaluateNewArrInput{Path: input.Expr.Path, Defs: input.Defs, NewArr: input.Expr.NewArr})
-	case ast.Expr_VAL_JSON:
-		return e.EvaluateValJson(&EvaluateValJsonInput{Path: input.Expr.Path, Defs: input.Defs, ValJson: input.Expr.ValJson})
+	case ast.Expr_OBJ:
+		return e.EvaluateObj(&EvaluateObjInput{Path: input.Expr.Path, Defs: input.Defs, Obj: input.Expr.Obj})
+	case ast.Expr_ARR:
+		return e.EvaluateArr(&EvaluateArrInput{Path: input.Expr.Path, Defs: input.Defs, Arr: input.Expr.Arr})
+	case ast.Expr_JSON:
+		return e.EvaluateJson(&EvaluateJsonInput{Path: input.Expr.Path, Defs: input.Defs, Json: input.Expr.Json})
 	case ast.Expr_RANGE_ITER:
 		return e.EvaluateRangeIter(&EvaluateRangeIterInput{Path: input.Expr.Path, Defs: input.Defs, RangeIter: input.Expr.RangeIter})
-	case ast.Expr_ELEM_ACCESS:
-		return e.EvaluateElemAccess(&EvaluateElemAccessInput{Path: input.Expr.Path, Defs: input.Defs, ElemAccess: input.Expr.ElemAccess})
+	case ast.Expr_GET_ELEM:
+		return e.EvaluateGetElem(&EvaluateGetElemInput{Path: input.Expr.Path, Defs: input.Defs, GetElem: input.Expr.GetElem})
 	case ast.Expr_FUN_CALL:
 		return e.EvaluateFunCall(&EvaluateFunCallInput{Path: input.Expr.Path, Defs: input.Defs, FunCall: input.Expr.FunCall})
-	case ast.Expr_CASE_BRANCHES:
-		return e.EvaluateCaseBranches(&EvaluateCaseBranchesInput{Path: input.Expr.Path, Defs: input.Defs, CaseBranches: input.Expr.CaseBranches})
+	case ast.Expr_CASES:
+		return e.EvaluateCases(&EvaluateCasesInput{Path: input.Expr.Path, Defs: input.Defs, Cases: input.Expr.Cases})
 	case ast.Expr_OP_UNARY:
 		return e.EvaluateOpUnary(&EvaluateOpUnaryInput{Path: input.Expr.Path, Defs: input.Defs, OpUnary: input.Expr.OpUnary})
 	case ast.Expr_OP_BINARY:
@@ -81,8 +81,8 @@ func (e *BasicEvaluator) EvaluateScalar(input *EvaluateScalarInput) *EvaluateOut
 	}
 }
 
-func (e *BasicEvaluator) EvaluateNewObj(input *EvaluateNewObjInput) *EvaluateOutput {
-	v := input.NewObj
+func (e *BasicEvaluator) EvaluateObj(input *EvaluateObjInput) *EvaluateOutput {
+	v := input.Obj
 	obj := &yaml.Value{Type: yaml.Type_OBJ, Obj: map[string]*yaml.Value{}}
 	for k, val := range v.Obj {
 		expr := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: val})
@@ -94,8 +94,8 @@ func (e *BasicEvaluator) EvaluateNewObj(input *EvaluateNewObjInput) *EvaluateOut
 	return &EvaluateOutput{Value: obj}
 }
 
-func (e *BasicEvaluator) EvaluateNewArr(input *EvaluateNewArrInput) *EvaluateOutput {
-	v := input.NewArr
+func (e *BasicEvaluator) EvaluateArr(input *EvaluateArrInput) *EvaluateOutput {
+	v := input.Arr
 	arr := &yaml.Value{Type: yaml.Type_ARR}
 	for _, val := range v.Arr {
 		expr := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: val})
@@ -107,8 +107,8 @@ func (e *BasicEvaluator) EvaluateNewArr(input *EvaluateNewArrInput) *EvaluateOut
 	return &EvaluateOutput{Value: arr}
 }
 
-func (e *BasicEvaluator) EvaluateValJson(input *EvaluateValJsonInput) *EvaluateOutput {
-	return &EvaluateOutput{Value: input.ValJson.Json}
+func (e *BasicEvaluator) EvaluateJson(input *EvaluateJsonInput) *EvaluateOutput {
+	return &EvaluateOutput{Value: input.Json.Json}
 }
 
 func (e *BasicEvaluator) EvaluateRangeIter(input *EvaluateRangeIterInput) *EvaluateOutput {
@@ -172,12 +172,12 @@ func (e *BasicEvaluator) EvaluateRangeIter(input *EvaluateRangeIterInput) *Evalu
 	}
 }
 
-func (e *BasicEvaluator) EvaluateElemAccess(input *EvaluateElemAccessInput) *EvaluateOutput {
-	get := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.Get})
+func (e *BasicEvaluator) EvaluateGetElem(input *EvaluateGetElemInput) *EvaluateOutput {
+	get := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.GetElem.Get})
 	if get.Status != EvaluateOutput_OK {
 		return get
 	}
-	from := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.ElemAccess.From})
+	from := e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: input.GetElem.From})
 	if from.Status != EvaluateOutput_OK {
 		return from
 	}
@@ -231,8 +231,8 @@ func (e *BasicEvaluator) EvaluateFunCall(input *EvaluateFunCallInput) *EvaluateO
 	return e.EvaluateExpr(&EvaluateExprInput{Defs: st, Expr: st.Def.Value})
 }
 
-func (e *BasicEvaluator) EvaluateCaseBranches(input *EvaluateCaseBranchesInput) *EvaluateOutput {
-	for _, branch := range input.CaseBranches.Branches {
+func (e *BasicEvaluator) EvaluateCases(input *EvaluateCasesInput) *EvaluateOutput {
+	for _, branch := range input.Cases.Branches {
 		if branch.IsOtherwise {
 			return e.EvaluateExpr(&EvaluateExprInput{Defs: input.Defs, Expr: branch.Otherwise})
 		}
@@ -277,26 +277,19 @@ func (e *BasicEvaluator) EvaluateOpUnary(input *EvaluateOpUnaryInput) *EvaluateO
 				Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Value.Obj))},
 			}
 		}
-	case ast.OpUnary_KEYS:
-		switch operand.Value.Type {
-		default:
-			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, operand.Value.Type)
-		case yaml.Type_ARR:
-			keys := []*yaml.Value{}
-			for i := range operand.Value.Arr {
-				keys = append(keys, &yaml.Value{Type: yaml.Type_NUM, Num: float64(i)})
-			}
-			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_ARR, Arr: keys},
-			}
-		case yaml.Type_OBJ:
-			keys := []*yaml.Value{}
-			for k := range operand.Value.Obj {
-				keys = append(keys, &yaml.Value{Type: yaml.Type_STR, Str: k})
-			}
-			return &EvaluateOutput{
-				Value: &yaml.Value{Type: yaml.Type_ARR, Arr: keys},
-			}
+	case ast.OpUnary_FLOOR:
+		if operand.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Value.Type)
+		}
+		return &EvaluateOutput{
+			Value: &yaml.Value{Type: yaml.Type_NUM, Num: math.Floor(operand.Value.Num)},
+		}
+	case ast.OpUnary_CEIL:
+		if operand.Value.Type != yaml.Type_NUM {
+			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_NUM}, operand.Value.Type)
+		}
+		return &EvaluateOutput{
+			Value: &yaml.Value{Type: yaml.Type_NUM, Num: math.Ceil(operand.Value.Num)},
 		}
 	case ast.OpUnary_FLAT:
 		if operand.Value.Type != yaml.Type_ARR {
@@ -312,48 +305,6 @@ func (e *BasicEvaluator) EvaluateOpUnary(input *EvaluateOpUnaryInput) *EvaluateO
 		return &EvaluateOutput{
 			Value: &yaml.Value{Type: yaml.Type_ARR, Arr: flat},
 		}
-	case ast.OpUnary_HEAD:
-		if operand.Value.Type != yaml.Type_ARR {
-			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
-		}
-		if len(operand.Value.Arr) == 0 {
-			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
-		}
-		return &EvaluateOutput{Value: operand.Value.Arr[0]}
-	case ast.OpUnary_TAIL:
-		if operand.Value.Type != yaml.Type_ARR {
-			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
-		}
-		if len(operand.Value.Arr) == 0 {
-			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
-		}
-		return &EvaluateOutput{
-			Value: &yaml.Value{
-				Type: yaml.Type_ARR,
-				Arr:  operand.Value.Arr[1:],
-			},
-		}
-	case ast.OpUnary_INIT:
-		if operand.Value.Type != yaml.Type_ARR {
-			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
-		}
-		if len(operand.Value.Arr) == 0 {
-			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
-		}
-		return &EvaluateOutput{
-			Value: &yaml.Value{
-				Type: yaml.Type_ARR,
-				Arr:  operand.Value.Arr[:len(operand.Value.Arr)-1],
-			},
-		}
-	case ast.OpUnary_LAST:
-		if operand.Value.Type != yaml.Type_ARR {
-			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_ARR}, operand.Value.Type)
-		}
-		if len(operand.Value.Arr) == 0 {
-			return errorIndexOutOfBounds(input.Path, 0, 1, 0)
-		}
-		return &EvaluateOutput{Value: operand.Value.Arr[len(operand.Value.Arr)-1]}
 	case ast.OpUnary_ABORT:
 		if operand.Value.Type != yaml.Type_STR {
 			return errorUnexpectedType(input.Path, []yaml.Type{yaml.Type_STR}, operand.Value.Type)
@@ -460,8 +411,6 @@ func (e *BasicEvaluator) EvaluateOpBinary(input *EvaluateOpBinaryInput) *Evaluat
 		return &EvaluateOutput{
 			Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num >= 0},
 		}
-	case ast.OpBinary_CMP:
-		return compare(input.Path, operandLeft.Value, operandRight.Value)
 	}
 }
 
@@ -663,7 +612,7 @@ func compare(path *ast.Path, l, r *yaml.Value) *EvaluateOutput {
 	}
 }
 func exprOfValue(v *yaml.Value) *ast.Expr {
-	return &ast.Expr{Kind: ast.Expr_VAL_JSON, ValJson: &ast.ValJson{Json: v}}
+	return &ast.Expr{Kind: ast.Expr_JSON, Json: &ast.Json{Json: v}}
 }
 func errorUnsupportedExpr(expr *ast.Expr) *EvaluateOutput {
 	return &EvaluateOutput{

@@ -1,14 +1,12 @@
 {
     "json.schemas": [
-
         {
             "fileMatch": [
-                "example.schema.json"
+                "example.schema.json",
+                "testdata/**/*.in.json",
+                "testdata/**/*.in.yaml",
             ],
-            "url": "../eyamluate.schema.yaml"
+            "url": "./schema/eyamluate.schema.yaml"
         }
-    ],
-    "json.schemaDownload.enable": true,
-    "json.validate.enable": true,
-    "json.trace.server": "verbose"
+    ]
 }

@@ -13,13 +13,13 @@ type Parser interface {
 	ParseExpr(*ParseExprInput) *ParseExprOutput
 	ParseEval(*ParseExprInput) *ParseExprOutput
 	ParseScalar(*ParseExprInput) *ParseExprOutput
-	ParseNewObj(*ParseExprInput) *ParseExprOutput
-	ParseNewArr(*ParseExprInput) *ParseExprOutput
-	ParseValJson(*ParseExprInput) *ParseExprOutput
+	ParseObj(*ParseExprInput) *ParseExprOutput
+	ParseArr(*ParseExprInput) *ParseExprOutput
+	ParseJson(*ParseExprInput) *ParseExprOutput
 	ParseRangeIter(*ParseExprInput) *ParseExprOutput
-	ParseElemAccess(*ParseExprInput) *ParseExprOutput
+	ParseGetElem(*ParseExprInput) *ParseExprOutput
 	ParseFunCall(*ParseExprInput) *ParseExprOutput
-	ParseCaseBranches(*ParseExprInput) *ParseExprOutput
+	ParseCases(*ParseExprInput) *ParseExprOutput
 	ParseOpUnary(*ParseOpUnaryInput) *ParseExprOutput
 	ParseOpBinary(*ParseOpBinaryInput) *ParseExprOutput
 	ParseOpVariadic(*ParseOpVariadicInput) *ParseExprOutput
@@ -76,33 +76,29 @@ func (p *parser) ParseExpr(input *ParseExprInput) *ParseExprOutput {
 		case keysAreMatched(input.Value, []string{"eval"}, []string{"where"}):
 			return p.ParseEval(input)
 		case keysAreMatched(input.Value, []string{"obj"}, nil):
-			return p.ParseNewObj(input)
+			return p.ParseObj(input)
 		case keysAreMatched(input.Value, []string{"arr"}, nil):
-			return p.ParseNewArr(input)
+			return p.ParseArr(input)
 		case keysAreMatched(input.Value, []string{"json"}, nil):
-			return p.ParseValJson(input)
+			return p.ParseJson(input)
 		case keysAreMatched(input.Value, []string{"for", "in", "do"}, []string{"if"}):
 			return p.ParseRangeIter(input)
 		case keysAreMatched(input.Value, []string{"get", "from"}, nil):
-			return p.ParseElemAccess(input)
+			return p.ParseGetElem(input)
 		case keysAreMatched(input.Value, []string{"ref"}, nil):
 			return p.ParseFunCall(input)
 		case keysAreMatched(input.Value, []string{"cases"}, nil):
-			return p.ParseCaseBranches(input)
+			return p.ParseCases(input)
 		case keysAreMatched(input.Value, []string{OpUnary_LEN.KeyName()}, nil):
 			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_LEN})
 		case keysAreMatched(input.Value, []string{OpUnary_NOT.KeyName()}, nil):
 			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_NOT})
-		case keysAreMatched(input.Value, []string{OpUnary_HEAD.KeyName()}, nil):
-			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_HEAD})
-		case keysAreMatched(input.Value, []string{OpUnary_TAIL.KeyName()}, nil):
-			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_TAIL})
-		case keysAreMatched(input.Value, []string{OpUnary_LAST.KeyName()}, nil):
-			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_LAST})
-		case keysAreMatched(input.Value, []string{OpUnary_INIT.KeyName()}, nil):
-			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_INIT})
 		case keysAreMatched(input.Value, []string{OpUnary_FLAT.KeyName()}, nil):
 			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_FLAT})
+		case keysAreMatched(input.Value, []string{OpUnary_FLOOR.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_FLOOR})
+		case keysAreMatched(input.Value, []string{OpUnary_CEIL.KeyName()}, nil):
+			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_CEIL})
 		case keysAreMatched(input.Value, []string{OpUnary_ABORT.KeyName()}, nil):
 			return p.ParseOpUnary(&ParseOpUnaryInput{Path: input.Path, Value: input.Value, Operator: OpUnary_ABORT})
 		case keysAreMatched(input.Value, []string{OpBinary_SUB.KeyName()}, nil):
@@ -123,8 +119,6 @@ func (p *parser) ParseExpr(input *ParseExprInput) *ParseExprOutput {
 			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_GT})
 		case keysAreMatched(input.Value, []string{OpBinary_GTE.KeyName()}, nil):
 			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_GTE})
-		case keysAreMatched(input.Value, []string{OpBinary_CMP.KeyName()}, nil):
-			return p.ParseOpBinary(&ParseOpBinaryInput{Path: input.Path, Value: input.Value, Operator: OpBinary_CMP})
 		case keysAreMatched(input.Value, []string{OpVariadic_ADD.KeyName()}, nil):
 			return p.ParseOpVariadic(&ParseOpVariadicInput{Path: input.Path, Value: input.Value, Operator: OpVariadic_ADD})
 		case keysAreMatched(input.Value, []string{OpVariadic_MUL.KeyName()}, nil):
@@ -213,7 +207,7 @@ func (p *parser) ParseScalar(input *ParseExprInput) *ParseExprOutput {
 		}
 	}
 }
-func (p *parser) ParseNewObj(input *ParseExprInput) *ParseExprOutput {
+func (p *parser) ParseObj(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	if v.Type != yaml.Type_OBJ {
@@ -236,13 +230,13 @@ func (p *parser) ParseNewObj(input *ParseExprInput) *ParseExprOutput {
 	}
 	return &ParseExprOutput{
 		Expr: &Expr{
-			Path:   path,
-			Kind:   Expr_NEW_OBJ,
-			NewObj: &NewObj{Obj: obj},
+			Path: path,
+			Kind: Expr_OBJ,
+			Obj:  &Obj{Obj: obj},
 		},
 	}
 }
-func (p *parser) ParseNewArr(input *ParseExprInput) *ParseExprOutput {
+func (p *parser) ParseArr(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	if v.Type != yaml.Type_OBJ {
@@ -265,13 +259,13 @@ func (p *parser) ParseNewArr(input *ParseExprInput) *ParseExprOutput {
 	}
 	return &ParseExprOutput{
 		Expr: &Expr{
-			Path:   path,
-			Kind:   Expr_NEW_ARR,
-			NewArr: &NewArr{Arr: arr},
+			Path: path,
+			Kind: Expr_ARR,
+			Arr:  &Arr{Arr: arr},
 		},
 	}
 }
-func (p *parser) ParseValJson(input *ParseExprInput) *ParseExprOutput {
+func (p *parser) ParseJson(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	if v.Type != yaml.Type_OBJ {
@@ -282,9 +276,9 @@ func (p *parser) ParseValJson(input *ParseExprInput) *ParseExprOutput {
 	}
 	return &ParseExprOutput{
 		Expr: &Expr{
-			Path:    path,
-			Kind:    Expr_VAL_JSON,
-			ValJson: &ValJson{Json: v.Obj["json"]},
+			Path: path,
+			Kind: Expr_JSON,
+			Json: &Json{Json: v.Obj["json"]},
 		},
 	}
 }
@@ -346,7 +340,7 @@ func (p *parser) ParseRangeIter(input *ParseExprInput) *ParseExprOutput {
 		},
 	}
 }
-func (p *parser) ParseElemAccess(input *ParseExprInput) *ParseExprOutput {
+func (p *parser) ParseGetElem(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	if v.Type != yaml.Type_OBJ {
@@ -365,9 +359,9 @@ func (p *parser) ParseElemAccess(input *ParseExprInput) *ParseExprOutput {
 	}
 	return &ParseExprOutput{
 		Expr: &Expr{
-			Path:       path,
-			Kind:       Expr_ELEM_ACCESS,
-			ElemAccess: &ElemAccess{Get: get.Expr, From: from.Expr},
+			Path:    path,
+			Kind:    Expr_GET_ELEM,
+			GetElem: &GetElem{Get: get.Expr, From: from.Expr},
 		},
 	}
 }
@@ -407,7 +401,7 @@ func (p *parser) ParseFunCall(input *ParseExprInput) *ParseExprOutput {
 		},
 	}
 }
-func (p *parser) ParseCaseBranches(input *ParseExprInput) *ParseExprOutput {
+func (p *parser) ParseCases(input *ParseExprInput) *ParseExprOutput {
 	v := input.Value
 	path := input.Path
 	if v.Type != yaml.Type_OBJ {
@@ -416,27 +410,26 @@ func (p *parser) ParseCaseBranches(input *ParseExprInput) *ParseExprOutput {
 	if !keysAreMatched(v, []string{"cases"}, nil) {
 		return errorUnsupportedKeys(input.Path, "CaseBranches", v.Keys(), []string{"cases"}, nil)
 	}
-	cases := v.Obj["cases"]
-	if cases.Type != yaml.Type_ARR {
-		return errorUnexpectedType(path.AppendKey("cases"), []yaml.Type{yaml.Type_ARR}, cases.Type)
+	if v.Obj["cases"].Type != yaml.Type_ARR {
+		return errorUnexpectedType(path.AppendKey("cases"), []yaml.Type{yaml.Type_ARR}, v.Obj["cases"].Type)
 	}
-	casesBranches := &CaseBranches{}
-	for i, v := range cases.Arr {
+	cases := &Cases{}
+	for i, v := range v.Obj["cases"].Arr {
 		path := path.AppendIndex(i)
 		switch {
 		default:
 			if _, ok := v.Obj["otherwise"]; !ok {
 				if !keysAreMatched(v, []string{"otherwise"}, nil) {
-					return errorUnsupportedKeys(path, "CaseBranches", v.Keys(), []string{"otherwise"}, nil)
+					return errorUnsupportedKeys(path, "Cases", v.Keys(), []string{"otherwise"}, nil)
 				}
 			}
-			return errorUnsupportedKeys(path, "CaseBranches", v.Keys(), []string{"when", "then"}, nil)
+			return errorUnsupportedKeys(path, "Cases", v.Keys(), []string{"when", "then"}, nil)
 		case !keysAreMatched(v, []string{"otherwise"}, nil):
 			otherwise := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("otherwise"), Value: v.Obj["otherwise"]})
 			if otherwise.Code != ParseErrorCode_OK {
 				return otherwise
 			}
-			casesBranches.Branches = append(casesBranches.Branches, &CaseBranches_Branch{Otherwise: otherwise.Expr})
+			cases.Branches = append(cases.Branches, &Cases_Branch{IsOtherwise: true, Otherwise: otherwise.Expr})
 		case !keysAreMatched(v, []string{"when", "then"}, nil):
 			when := p.ParseExpr(&ParseExprInput{Path: path.AppendKey("when"), Value: v.Obj["when"]})
 			if when.Code != ParseErrorCode_OK {
@@ -446,14 +439,14 @@ func (p *parser) ParseCaseBranches(input *ParseExprInput) *ParseExprOutput {
 			if then.Code != ParseErrorCode_OK {
 				return then
 			}
-			casesBranches.Branches = append(casesBranches.Branches, &CaseBranches_Branch{When: when.Expr, Then: then.Expr})
+			cases.Branches = append(cases.Branches, &Cases_Branch{When: when.Expr, Then: then.Expr})
 		}
 	}
 	return &ParseExprOutput{
 		Expr: &Expr{
-			Path:         path,
-			Kind:         Expr_CASE_BRANCHES,
-			CaseBranches: casesBranches,
+			Path:  path,
+			Kind:  Expr_CASES,
+			Cases: cases,
 		},
 	}
 }

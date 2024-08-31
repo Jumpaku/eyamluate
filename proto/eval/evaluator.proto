@@ -12,13 +12,13 @@ service Evaluator {
   rpc EvaluateExpr(EvaluateExprInput) returns (EvaluateOutput) {}
   rpc EvaluateEval(EvaluateEvalInput) returns (EvaluateOutput) {}
   rpc EvaluateScalar(EvaluateScalarInput) returns (EvaluateOutput) {}
-  rpc EvaluateNewObj(EvaluateNewObjInput) returns (EvaluateOutput) {}
-  rpc EvaluateNewArr(EvaluateNewArrInput) returns (EvaluateOutput) {}
-  rpc EvaluateValJson(EvaluateValJsonInput) returns (EvaluateOutput) {}
+  rpc EvaluateObj(EvaluateObjInput) returns (EvaluateOutput) {}
+  rpc EvaluateArr(EvaluateArrInput) returns (EvaluateOutput) {}
+  rpc EvaluateJson(EvaluateJsonInput) returns (EvaluateOutput) {}
   rpc EvaluateRangeIter(EvaluateRangeIterInput) returns (EvaluateOutput) {}
-  rpc EvaluateElemAccess(EvaluateElemAccessInput) returns (EvaluateOutput) {}
+  rpc EvaluateGetElem(EvaluateGetElemInput) returns (EvaluateOutput) {}
   rpc EvaluateFunCall(EvaluateFunCallInput) returns (EvaluateOutput) {}
-  rpc EvaluateCaseBranches(EvaluateCaseBranchesInput) returns (EvaluateOutput) {}
+  rpc EvaluateCases(EvaluateCasesInput) returns (EvaluateOutput) {}
   rpc EvaluateOpUnary(EvaluateOpUnaryInput) returns (EvaluateOutput) {}
   rpc EvaluateOpBinary(EvaluateOpBinaryInput) returns (EvaluateOutput) {}
   rpc EvaluateOpVariadic(EvaluateOpVariadicInput) returns (EvaluateOutput) {}
@@ -28,6 +28,7 @@ message FunDefList {
   FunDefList parent = 1;
   ast.FunDef def = 2;
 }
+
 message EvaluateInput {
   FunDefList defs = 1;
   ast.Expr expr = 2;
@@ -65,18 +66,18 @@ message EvaluateScalarInput {
   FunDefList defs = 2;
   ast.Path path = 10;
 }
-message EvaluateNewObjInput {
-  ast.NewObj new_obj = 1;
+message EvaluateObjInput {
+  ast.Obj obj = 1;
   FunDefList defs = 2;
   ast.Path path = 10;
 }
-message EvaluateNewArrInput {
-  ast.NewArr new_arr = 1;
+message EvaluateArrInput {
+  ast.Arr arr = 1;
   FunDefList defs = 2;
   ast.Path path = 10;
 }
-message EvaluateValJsonInput {
-  ast.ValJson val_json = 1;
+message EvaluateJsonInput {
+  ast.Json json = 1;
   FunDefList defs = 2;
   ast.Path path = 10;
 }
@@ -85,8 +86,8 @@ message EvaluateRangeIterInput {
   FunDefList defs = 2;
   ast.Path path = 10;
 }
-message EvaluateElemAccessInput {
-  ast.ElemAccess elem_access = 1;
+message EvaluateGetElemInput {
+  ast.GetElem get_elem = 1;
   FunDefList defs = 2;
   ast.Path path = 10;
 }
@@ -95,8 +96,8 @@ message EvaluateFunCallInput {
   FunDefList defs = 2;
   ast.Path path = 10;
 }
-message EvaluateCaseBranchesInput {
-  ast.CaseBranches case_branches = 1;
+message EvaluateCasesInput {
+  ast.Cases cases = 1;
   FunDefList defs = 2;
   ast.Path path = 10;
 }

@@ -13,6 +13,7 @@ message Path {
   }
   repeated Pos pos = 1;
 }
+
 message Eval {
   repeated FunDef where = 1;
   Expr eval = 2;
@@ -30,13 +31,13 @@ message Expr {
     UNSPECIFIED = 0;
     EVAL = 1;
     SCALAR = 2;
-    NEW_OBJ = 3;
-    NEW_ARR = 4;
-    VAL_JSON = 5;
+    OBJ = 3;
+    ARR = 4;
+    JSON = 5;
     RANGE_ITER = 6;
-    ELEM_ACCESS = 7;
+    GET_ELEM = 7;
     FUN_CALL = 8;
-    CASE_BRANCHES = 9;
+    CASES = 9;
     OP_UNARY = 10;
     OP_BINARY = 11;
     OP_VARIADIC = 12;
@@ -44,13 +45,13 @@ message Expr {
   Kind kind = 1;
   Eval eval = 2;
   Scalar scalar = 3;
-  NewObj new_obj = 4;
-  NewArr new_arr = 5;
-  ValJson val_json = 6;
+  Obj obj = 4;
+  Arr arr = 5;
+  Json json = 6;
   RangeIter range_iter = 7;
-  ElemAccess elem_access = 8;
+  GetElem get_elem = 8;
   FunCall fun_call = 9;
-  CaseBranches case_branches = 10;
+  Cases cases = 10;
   OpUnary op_unary = 11;
   OpBinary op_binary = 12;
   OpVariadic op_variadic = 13;
@@ -61,15 +62,15 @@ message Scalar {
   yaml.Value val = 1;
 }
 
-message NewObj {
+message Obj {
   map<string, Expr> obj = 1;
 }
 
-message NewArr {
+message Arr {
   repeated Expr arr = 1;
 }
 
-message ValJson {
+message Json {
   yaml.Value json = 1;
 }
 
@@ -81,7 +82,7 @@ message RangeIter {
   Expr if = 5;
 }
 
-message ElemAccess {
+message GetElem {
   Expr get = 1;
   Expr from = 2;
 }
@@ -91,7 +92,7 @@ message FunCall {
   map<string, Expr> with = 2;
 }
 
-message CaseBranches {
+message Cases {
   message Branch {
     bool is_otherwise = 1;
     Expr when = 2;
@@ -106,13 +107,10 @@ message OpUnary {
     UNSPECIFIED = 0;
     LEN = 1;
     NOT = 2;
-    HEAD = 3;
-    TAIL = 4;
-    LAST = 5;
-    INIT = 6;
-    FLAT = 7;
-    KEYS = 8;
-    ABORT = 9;
+    FLAT = 3;
+    FLOOR = 4;
+    CEIL = 5;
+    ABORT = 6;
   }
   Operator operator = 1;
   Expr operand = 2;
@@ -130,7 +128,6 @@ message OpBinary {
     LTE = 7;
     GT = 8;
     GTE = 9;
-    CMP = 10;
   }
   Operator operator = 1;
   Expr operand_left = 2;

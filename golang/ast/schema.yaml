@@ -1,8 +1,23 @@
 "$schema": "http://json-schema.org/draft-07/schema#"
 
-"$ref": "#/definitions/Eval"
+"$ref": "#/definitions/Expr"
 
 definitions:
+
+  Expr:
+    anyOf:
+      - "$ref": "#/definitions/Eval"
+      - "$ref": "#/definitions/Scalar"
+      - "$ref": "#/definitions/NewObj"
+      - "$ref": "#/definitions/NewArr"
+      - "$ref": "#/definitions/ValJson"
+      - "$ref": "#/definitions/RangeIter"
+      - "$ref": "#/definitions/ElemAccess"
+      - "$ref": "#/definitions/FunCall"
+      - "$ref": "#/definitions/CaseBranches"
+      - "$ref": "#/definitions/OpUnary"
+      - "$ref": "#/definitions/OpBinary"
+      - "$ref": "#/definitions/OpVariadic"
 
   Eval:
     type: object
@@ -29,21 +44,6 @@ definitions:
           type: string
     required: [def, value]
     additionalProperties: false
-
-  Expr:
-    anyOf:
-      - "$ref": "#/definitions/Eval"
-      - "$ref": "#/definitions/Scalar"
-      - "$ref": "#/definitions/NewObj"
-      - "$ref": "#/definitions/NewArr"
-      - "$ref": "#/definitions/ValJson"
-      - "$ref": "#/definitions/RangeIter"
-      - "$ref": "#/definitions/ElemAccess"
-      - "$ref": "#/definitions/FunCall"
-      - "$ref": "#/definitions/CaseBranches"
-      - "$ref": "#/definitions/OpUnary"
-      - "$ref": "#/definitions/OpBinary"
-      - "$ref": "#/definitions/OpVariadic"
 
   Scalar:
     oneOf:

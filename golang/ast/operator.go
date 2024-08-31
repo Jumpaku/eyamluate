@@ -10,16 +10,12 @@ func (o OpUnary_Operator) KeyName() string {
 		return "len"
 	case OpUnary_NOT:
 		return "not"
-	case OpUnary_HEAD:
-		return "head"
-	case OpUnary_TAIL:
-		return "tail"
-	case OpUnary_LAST:
-		return "last"
-	case OpUnary_INIT:
-		return "init"
 	case OpUnary_FLAT:
 		return "flat"
+	case OpUnary_FLOOR:
+		return "floor"
+	case OpUnary_CEIL:
+		return "ceil"
 	case OpUnary_ABORT:
 		return "abort"
 	}
@@ -47,8 +43,6 @@ func (o OpBinary_Operator) KeyName() string {
 		return "gt"
 	case OpBinary_GTE:
 		return "gte"
-	case OpBinary_CMP:
-		return "cmp"
 	}
 }
 
