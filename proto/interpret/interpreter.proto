@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package interpret;
+
+import "ast/schema.proto";
+import "yaml/value.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/interpret";
+
+service Interpreter {
+  rpc Iterpret(InterpretInput) returns (InterpretOutput) {}
+  rpc IterpretExpr(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretEval(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretScalar(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretObj(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretArr(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretJson(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretRangeIter(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretGetElem(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretFunCall(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretCases(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretOpUnary(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretOpBinary(InterpretExprInput) returns (InterpretExprOutput) {}
+  rpc IterpretOpVariadic(InterpretExprInput) returns (InterpretExprOutput) {}
+}
+
+message FunDef {
+  string def = 1;
+  yaml.Value value = 2;
+  repeated string with = 3;
+  Path path = 10;
+}
+message FunDefList {
+  FunDefList parent = 1;
+  FunDef def = 2;
+}
+
+message Path {
+  message Pos {
+    int64 index = 1;
+    string key = 2;
+  }
+  repeated Pos pos = 1;
+}
+
+message InterpretInput {
+  string source = 1;
+}
+
+enum Status {
+  OK = 0;
+  UNSUPPORTED_EXPR_ERROR = 1;
+  UNEXPECTED_TYPE_ERROR = 2;
+  ARITHMETIC_ERROR = 3;
+  INDEX_OUT_OF_BOUNDS_ERROR = 4;
+  KEY_NOT_FOUND_ERROR = 5;
+  REFERENCE_NOT_FOUND_ERROR = 6;
+  CASES_NOT_EXHAUSTIVE_ERROR = 7;
+  UNSUPPORTED_OPERATION_ERROR = 8;
+  ABORT_ERROR = 9;
+  UNKNOWN_ERROR = 10;
+}
+
+message InterpretOutput {
+  Status status = 1;
+  string error_message = 2;
+  Path error_path = 3;
+  yaml.Value value = 4;
+}
+
+message InterpretExprInput {
+  Path path = 10;
+  FunDefList defs = 1;
+  yaml.Value expr = 2;
+}
+
+message InterpretExprOutput {
+  Status status = 1;
+  string error_message = 2;
+  Path error_path = 3;
+  yaml.Value value = 4;
+}
