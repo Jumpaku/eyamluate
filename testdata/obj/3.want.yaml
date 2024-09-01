@@ -1,0 +1,8 @@
+want_value:
+  x: 
+  - -123.5
+  - "abc"
+  - true
+  - false
+  - []
+  - {}

@@ -1,0 +1,8 @@
+want_value:
+  x: 
+    a: -123.5
+    b: "abc"
+    c: true
+    d: false
+    e: []
+    f: {}

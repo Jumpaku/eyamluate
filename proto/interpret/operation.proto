@@ -2,9 +2,6 @@ syntax = "proto3";
 
 package interpret;
 
-import "ast/schema.proto";
-import "yaml/value.proto";
-
 option go_package = "github.com/Jumpaku/eyamlate/golang/interpret";
 
 message OpUnary {

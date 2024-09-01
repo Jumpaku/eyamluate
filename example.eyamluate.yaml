@@ -1,5 +1,8 @@
 eval:
-  ref: 'a'
+  ref: gcd
+  with:
+    n: 270
+    m: 192
 where:
   - def: a
     value: 1

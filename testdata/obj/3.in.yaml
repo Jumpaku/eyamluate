@@ -1,0 +1,9 @@
+obj:
+  x: 
+    arr:
+    - -123.5
+    - "abc"
+    - true
+    - false
+    - arr: []
+    - obj: {}

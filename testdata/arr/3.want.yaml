@@ -1,0 +1,8 @@
+want_value:
+-
+  - -123.5
+  - abc
+  - true
+  - false
+  - []
+  - {}

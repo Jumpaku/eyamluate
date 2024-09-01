@@ -86,10 +86,10 @@ definitions:
           - type: string
           - type: object
             additionalProperties:
-              "$ref": "#/definitions/ValJson/definitions/NonNull"
+              "$ref": "#/definitions/Json/definitions/NonNull"
           - type: array
             items:
-              "$ref": "#/definitions/ValJson/definitions/NonNull"
+              "$ref": "#/definitions/Json/definitions/NonNull"
 
   RangeIter:
     type: object
@@ -141,7 +141,7 @@ definitions:
             - "$ref": "#/definitions/Cases/definitions/CasesWhenThen"
             - "$ref": "#/definitions/Cases/definitions/CasesOtherwise"
         contains:
-          "$ref": "#/definitions/CaseOtherwise"
+          "$ref": "#/definitions/Cases/definitions/CasesOtherwise"
     required: [ cases ]
     additionalProperties: false
     definitions:

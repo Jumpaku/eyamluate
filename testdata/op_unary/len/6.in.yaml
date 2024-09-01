@@ -1,0 +1,10 @@
+len:
+  obj:
+    a: -123.5
+    b: abc
+    c: true
+    d: false
+    e:
+      arr: []
+    f:
+      obj: {}
