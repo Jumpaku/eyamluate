@@ -1,0 +1,5 @@
+eq:
+  - json:
+      x: 1
+  - json:
+      x: 2

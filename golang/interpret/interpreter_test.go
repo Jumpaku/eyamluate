@@ -64,12 +64,19 @@ func TestInterpreter_Interpret(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for name, testcase := range testcases {
+	testcaseKeys := []string{}
+	for key := range testcases {
+		testcaseKeys = append(testcaseKeys, key)
+	}
+	slices.Sort(testcaseKeys)
+	for _, name := range testcaseKeys {
+		testcase := testcases[name]
 		t.Run(name, func(t *testing.T) {
 			got := NewInterpreter().Interpret(&InterpretInput{Source: testcase.YamlInput})
 			if testcase.WantError {
 				require.NotEqual(t, got.Status, InterpretOutput_OK)
 			} else {
+				require.Equal(t, got.Status, InterpretOutput_OK)
 				require.Nil(t, checkEqual([]string{}, testcase.WantValue, got.Value))
 			}
 		})

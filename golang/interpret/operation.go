@@ -28,7 +28,7 @@ func (o OpBinary_Operator) KeyName() string {
 	case OpBinary_SUB:
 		return "sub"
 	case OpBinary_DIV:
-		return "mul"
+		return "div"
 	case OpBinary_MOD:
 		return "mod"
 	case OpBinary_EQ:

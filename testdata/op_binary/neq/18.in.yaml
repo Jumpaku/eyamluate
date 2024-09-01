@@ -1,0 +1,5 @@
+neq:
+  - json:
+      x: 1
+  - json:
+      x: 2

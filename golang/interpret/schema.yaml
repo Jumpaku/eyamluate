@@ -243,10 +243,12 @@ definitions:
         type: array
         items:
           "$ref": "#/definitions/Expr"
+        minItems: 1
       max:
         type: array
         items:
           "$ref": "#/definitions/Expr"
+        minItems: 1
       merge:
         type: array
         items:

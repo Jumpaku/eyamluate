@@ -372,12 +372,20 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 		if operand.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Floor(operand.Num)}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Floor(operand.Num)}
+		if !isFiniteNumber(v) {
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("floor(%v) is not a finite number", operand.Num))
+		}
+		return &InterpretExprOutput{Value: v}
 	case OpUnary_CEIL.KeyName():
 		if operand.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Ceil(operand.Num)}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Ceil(operand.Num)}
+		if !isFiniteNumber(v) {
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("ceil(%v) is not a finite number", operand.Num))
+		}
+		return &InterpretExprOutput{Value: v}
 	}
 }
 
@@ -408,7 +416,11 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if operandR.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num - operandR.Num}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num - operandR.Num}
+		if !isFiniteNumber(v) {
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("%v-%v is not a finite number", operandL.Num, operandR.Num))
+		}
+		return &InterpretExprOutput{Value: v}
 	case OpBinary_DIV.KeyName():
 		if operandL.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
@@ -416,7 +428,11 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if operandR.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num / operandR.Num}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num / operandR.Num}
+		if !isFiniteNumber(v) {
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("%v/%v is not a finite number", operandL.Num, operandR.Num))
+		}
+		return &InterpretExprOutput{Value: v}
 	case OpBinary_MOD.KeyName():
 		if operandL.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
@@ -424,16 +440,11 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if operandR.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
-		if !operandL.CanInt() {
-			return errorArithmeticError(input.Path.AppendKey(operator).AppendIndex(0), fmt.Sprintf("left operand %v is not an integer", operandL.Num))
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Mod(operandL.Num, operandR.Num)}
+		if !isFiniteNumber(v) {
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("mod(%v,%v) is not a finite number", operandL.Num, operandR.Num))
 		}
-		if !operandR.CanInt() {
-			return errorArithmeticError(input.Path.AppendKey(operator).AppendIndex(1), fmt.Sprintf("right operand %v is not an integer", operandR.Num))
-		}
-		if operandR.Num == 0 {
-			return errorArithmeticError(input.Path.AppendKey(operator).AppendIndex(1), "division by zero")
-		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(int(operandL.Num) % int(operandR.Num))}}
+		return &InterpretExprOutput{Value: v}
 	case OpBinary_EQ.KeyName():
 		return equal(input.Path.AppendKey(operator), operandL, operandR)
 	case OpBinary_NEQ.KeyName():
@@ -495,7 +506,15 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			add += operand.Num
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: add}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: add}
+		if !isFiniteNumber(v) {
+			v := []string{}
+			for _, operand := range operands {
+				v = append(v, fmt.Sprintf("%v", operand.Num))
+			}
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("add(%v) is not a finite number", strings.Join(v, ",")))
+		}
+		return &InterpretExprOutput{Value: v}
 	case OpVariadic_MUL.KeyName():
 		mul := 1.0
 		for _, operand := range operands {
@@ -504,7 +523,15 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			mul *= operand.Num
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: mul}}
+		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: mul}
+		if !isFiniteNumber(v) {
+			v := []string{}
+			for _, operand := range operands {
+				v = append(v, fmt.Sprintf("%v", operand.Num))
+			}
+			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("mul(%v) is not a finite number", strings.Join(v, ",")))
+		}
+		return &InterpretExprOutput{Value: v}
 	case OpVariadic_AND.KeyName():
 		and := true
 		for _, operand := range operands {
@@ -663,6 +690,9 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		}
 		return eqValue
 	}
+}
+func isFiniteNumber(v *yaml.Value) bool {
+	return v.Type == yaml.Type_TYPE_NUM && !math.IsInf(v.Num, 0) && !math.IsNaN(v.Num)
 }
 
 func errorUnsupportedExpr(path *Path, v *yaml.Value) *InterpretExprOutput {

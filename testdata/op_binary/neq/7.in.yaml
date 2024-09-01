@@ -1,0 +1,15 @@
+neq:
+- json:
+    a: -123.5
+    b: abc
+    c: true
+    d: false
+    e: { }
+    f: [ ]
+- json:
+    a: -123.5
+    b: abc
+    c: true
+    d: false
+    e: { }
+    f: [ ]
