@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package interpret;
 
-import "ast/schema.proto";
 import "yaml/value.proto";
 
 option go_package = "github.com/Jumpaku/eyamlate/golang/interpret";
@@ -47,25 +46,18 @@ message InterpretInput {
   string source = 1;
 }
 
-enum Status {
-  OK = 0;
-  UNSUPPORTED_EXPR_ERROR = 1;
-  UNEXPECTED_TYPE_ERROR = 2;
-  ARITHMETIC_ERROR = 3;
-  INDEX_OUT_OF_BOUNDS_ERROR = 4;
-  KEY_NOT_FOUND_ERROR = 5;
-  REFERENCE_NOT_FOUND_ERROR = 6;
-  CASES_NOT_EXHAUSTIVE_ERROR = 7;
-  UNSUPPORTED_OPERATION_ERROR = 8;
-  ABORT_ERROR = 9;
-  UNKNOWN_ERROR = 10;
-}
-
 message InterpretOutput {
+  enum Status {
+    OK = 0;
+    DECODE_ERROR = 1;
+    VALIDATE_ERROR = 2;
+    EXPR_ERROR = 3;
+  }
   Status status = 1;
   string error_message = 2;
-  Path error_path = 3;
-  yaml.Value value = 4;
+  Path expr_error_path = 3;
+  InterpretExprOutput.Status expr_status = 4;
+  yaml.Value value = 5;
 }
 
 message InterpretExprInput {
@@ -75,6 +67,19 @@ message InterpretExprInput {
 }
 
 message InterpretExprOutput {
+  enum Status {
+    OK = 0;
+    UNSUPPORTED_EXPR = 1;
+    UNEXPECTED_TYPE = 2;
+    ARITHMETIC_ERROR = 3;
+    INDEX_OUT_OF_BOUNDS = 4;
+    KEY_NOT_FOUND = 5;
+    REFERENCE_NOT_FOUND = 6;
+    CASES_NOT_EXHAUSTIVE = 7;
+    UNSUPPORTED_OPERATION = 8;
+    ABORTED = 9;
+    UNKNOWN = 10;
+  }
   Status status = 1;
   string error_message = 2;
   Path error_path = 3;

@@ -9,7 +9,7 @@ import (
 )
 
 type Interpreter interface {
-	Interpret(*InterpretExprInput) *InterpretExprOutput
+	Interpret(*InterpretInput) *InterpretOutput
 	InterpretExpr(*InterpretExprInput) *InterpretExprOutput
 	InterpretEval(*InterpretExprInput) *InterpretExprOutput
 	InterpretScalar(*InterpretExprInput) *InterpretExprOutput
@@ -31,59 +31,88 @@ func NewInterpreter() Interpreter {
 
 type interpreter struct{}
 
-func (i *interpreter) Interpret(input *InterpretExprInput) *InterpretExprOutput {
-	//TODO implement me
-	panic("implement me")
+func (i *interpreter) Interpret(input *InterpretInput) *InterpretOutput {
+	// Decode input
+	v := yaml.NewDecoder().Decode(&yaml.DecodeInput{Yaml: input.Source})
+	if v.IsError {
+		return &InterpretOutput{
+			Status:       InterpretOutput_DECODE_ERROR,
+			ErrorMessage: v.ErrorMessage,
+		}
+	}
+
+	// Validate input
+	{
+		v := NewValidator().Validate(&ValidateInput{Source: input.Source})
+		if v.Status != ValidateOutput_OK {
+			return &InterpretOutput{
+				Status:       InterpretOutput_VALIDATE_ERROR,
+				ErrorMessage: v.ErrorMessage,
+			}
+		}
+	}
+
+	// Interpret input
+	e := i.InterpretExpr(&InterpretExprInput{Path: &Path{}, Defs: &FunDefList{}, Expr: v.Value})
+	if e.Status != InterpretExprOutput_OK {
+		return &InterpretOutput{
+			Status:        InterpretOutput_EXPR_ERROR,
+			ErrorMessage:  e.ErrorMessage,
+			ExprStatus:    e.Status,
+			ExprErrorPath: e.ErrorPath,
+		}
+	}
+	return &InterpretOutput{Value: e.Value}
 }
 
 func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOutput {
 	v := input.Expr
 	switch v.Type {
-	case yaml.Type_BOOL, yaml.Type_NUM, yaml.Type_STR:
+	case yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR:
 		return i.InterpretScalar(input)
-	case yaml.Type_OBJ:
+	case yaml.Type_TYPE_OBJ:
 		switch {
-		case keysMatch(input.Expr, []string{"eval"}, []string{"where"}):
+		case hasKey(input.Expr, "eval"):
 			return i.InterpretEval(input)
-		case keysMatch(input.Expr, []string{"obj"}, nil):
+		case hasKey(input.Expr, "obj"):
 			return i.InterpretObj(input)
-		case keysMatch(input.Expr, []string{"arr"}, nil):
+		case hasKey(input.Expr, "arr"):
 			return i.InterpretArr(input)
-		case keysMatch(input.Expr, []string{"json"}, nil):
+		case hasKey(input.Expr, "json"):
 			return i.InterpretJson(input)
-		case keysMatch(input.Expr, []string{"for", "in", "do"}, []string{"if"}):
+		case hasKey(input.Expr, "for"):
 			return i.InterpretRangeIter(input)
-		case keysMatch(input.Expr, []string{"get", "from"}, nil):
+		case hasKey(input.Expr, "get"):
 			return i.InterpretGetElem(input)
-		case keysMatch(input.Expr, []string{"ref"}, nil):
+		case hasKey(input.Expr, "ref"):
 			return i.InterpretFunCall(input)
-		case keysMatch(input.Expr, []string{"cases"}, nil):
+		case hasKey(input.Expr, "cases"):
 			return i.InterpretCases(input)
-		case keysMatch(input.Expr, []string{OpUnary_LEN.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpUnary_NOT.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpUnary_FLAT.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpUnary_FLOOR.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpUnary_CEIL.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpUnary_ABORT.KeyName()}, nil):
+		case hasKey(input.Expr, OpUnary_LEN.KeyName()),
+			hasKey(input.Expr, OpUnary_NOT.KeyName()),
+			hasKey(input.Expr, OpUnary_FLAT.KeyName()),
+			hasKey(input.Expr, OpUnary_FLOOR.KeyName()),
+			hasKey(input.Expr, OpUnary_CEIL.KeyName()),
+			hasKey(input.Expr, OpUnary_ABORT.KeyName()):
 			return i.InterpretOpUnary(input)
-		case keysMatch(input.Expr, []string{OpBinary_SUB.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_DIV.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_MOD.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_EQ.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_NEQ.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_LT.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_LTE.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_GT.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpBinary_GTE.KeyName()}, nil):
+		case hasKey(input.Expr, OpBinary_SUB.KeyName()),
+			hasKey(input.Expr, OpBinary_DIV.KeyName()),
+			hasKey(input.Expr, OpBinary_MOD.KeyName()),
+			hasKey(input.Expr, OpBinary_EQ.KeyName()),
+			hasKey(input.Expr, OpBinary_NEQ.KeyName()),
+			hasKey(input.Expr, OpBinary_LT.KeyName()),
+			hasKey(input.Expr, OpBinary_LTE.KeyName()),
+			hasKey(input.Expr, OpBinary_GT.KeyName()),
+			hasKey(input.Expr, OpBinary_GTE.KeyName()):
 			return i.InterpretOpBinary(input)
-		case keysMatch(input.Expr, []string{OpVariadic_ADD.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_MUL.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_AND.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_OR.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_CAT.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_MIN.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_MAX.KeyName()}, nil),
-			keysMatch(input.Expr, []string{OpVariadic_MERGE.KeyName()}, nil):
+		case hasKey(input.Expr, OpVariadic_ADD.KeyName()),
+			hasKey(input.Expr, OpVariadic_MUL.KeyName()),
+			hasKey(input.Expr, OpVariadic_AND.KeyName()),
+			hasKey(input.Expr, OpVariadic_OR.KeyName()),
+			hasKey(input.Expr, OpVariadic_CAT.KeyName()),
+			hasKey(input.Expr, OpVariadic_MIN.KeyName()),
+			hasKey(input.Expr, OpVariadic_MAX.KeyName()),
+			hasKey(input.Expr, OpVariadic_MERGE.KeyName()):
 			return i.InterpretOpVariadic(input)
 		}
 	}
@@ -120,12 +149,12 @@ func (i *interpreter) InterpretObj(input *InterpretExprInput) *InterpretExprOutp
 	v := map[string]*yaml.Value{}
 	for pos, val := range obj.Obj {
 		expr := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey(pos), Defs: input.Defs, Expr: val})
-		if expr.Status != Status_OK {
+		if expr.Status != InterpretExprOutput_OK {
 			return expr
 		}
 		v[pos] = expr.Value
 	}
-	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_OBJ, Obj: v}}
+	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
 }
 
 func (i *interpreter) InterpretArr(input *InterpretExprInput) *InterpretExprOutput {
@@ -134,12 +163,12 @@ func (i *interpreter) InterpretArr(input *InterpretExprInput) *InterpretExprOutp
 	v := []*yaml.Value{}
 	for pos, val := range arr.Arr {
 		expr := i.InterpretExpr(&InterpretExprInput{Path: path.AppendIndex(pos), Defs: input.Defs, Expr: val})
-		if expr.Status != Status_OK {
+		if expr.Status != InterpretExprOutput_OK {
 			return expr
 		}
 		v = append(v, expr.Value)
 	}
-	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_ARR, Arr: v}}
+	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 }
 
 func (i *interpreter) InterpretJson(input *InterpretExprInput) *InterpretExprOutput {
@@ -152,19 +181,19 @@ func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretEx
 	for_ := input.Expr.Obj["for"]
 	forPos, forVal := for_.Arr[0].Str, for_.Arr[1].Str
 	in := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("in"), Defs: input.Defs, Expr: input.Expr.Obj["in"]})
-	if in.Status != Status_OK {
+	if in.Status != InterpretExprOutput_OK {
 		return in
 	}
 	switch in.Value.Type {
 	default:
-		return errorUnexpectedType(path.AppendKey("in"), []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, in.Value.Type)
-	case yaml.Type_ARR:
+		return errorUnexpectedType(path.AppendKey("in"), []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, in.Value.Type)
+	case yaml.Type_TYPE_ARR:
 		v := []*yaml.Value{}
 		for pos, val := range in.Value.Arr {
 			st := input.Defs
 			st = st.Register(&FunDef{
 				Def:   forPos,
-				Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(pos)},
+				Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(pos)},
 				Path:  path.AppendKey("for").AppendIndex(0),
 			})
 			st = st.Register(&FunDef{
@@ -173,19 +202,19 @@ func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretEx
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
 			do := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
-			if do.Status != Status_OK {
+			if do.Status != InterpretExprOutput_OK {
 				return do
 			}
 			v = append(v, do.Value)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_ARR, Arr: v}}
-	case yaml.Type_OBJ:
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
+	case yaml.Type_TYPE_OBJ:
 		v := map[string]*yaml.Value{}
 		for pos, val := range in.Value.Obj {
 			st := input.Defs
 			st = st.Register(&FunDef{
 				Def:   forPos,
-				Value: &yaml.Value{Type: yaml.Type_STR, Str: pos},
+				Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: pos},
 				Path:  path.AppendKey("for").AppendIndex(0),
 			})
 			st = st.Register(&FunDef{
@@ -194,32 +223,32 @@ func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretEx
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
 			do := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
-			if do.Status != Status_OK {
+			if do.Status != InterpretExprOutput_OK {
 				return do
 			}
 			v[pos] = do.Value
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_OBJ, Obj: v}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
 	}
 }
 
 func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExprOutput {
 	path := input.Path
 	get := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("get"), Defs: input.Defs, Expr: input.Expr.Obj["get"]})
-	if get.Status != Status_OK {
+	if get.Status != InterpretExprOutput_OK {
 		return get
 	}
 	from := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("from"), Defs: input.Defs, Expr: input.Expr.Obj["from"]})
-	if from.Status != Status_OK {
+	if from.Status != InterpretExprOutput_OK {
 		return from
 	}
 
 	switch from.Value.Type {
 	default:
-		return errorUnexpectedType(path.AppendKey("from"), []yaml.Type{yaml.Type_ARR, yaml.Type_OBJ}, from.Value.Type)
-	case yaml.Type_ARR:
-		if get.Value.Type != yaml.Type_NUM {
-			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_NUM}, get.Value.Type)
+		return errorUnexpectedType(path.AppendKey("from"), []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, from.Value.Type)
+	case yaml.Type_TYPE_ARR:
+		if get.Value.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_NUM}, get.Value.Type)
 		}
 		if !get.Value.CanInt() {
 			return errorArithmeticError(path.AppendKey("get"), fmt.Sprintf("index %v is not an integer", get.Value.Num))
@@ -229,9 +258,9 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 			return errorIndexOutOfBounds(path.AppendKey("get"), 0, len(from.Value.Arr), pos)
 		}
 		return &InterpretExprOutput{Value: from.Value.Arr[pos]}
-	case yaml.Type_OBJ:
-		if get.Value.Type != yaml.Type_STR {
-			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_STR}, get.Value.Type)
+	case yaml.Type_TYPE_OBJ:
+		if get.Value.Type != yaml.Type_TYPE_STR {
+			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_STR}, get.Value.Type)
 		}
 		pos := get.Value.Str
 		if _, ok := from.Value.Obj[pos]; ok {
@@ -269,24 +298,24 @@ func (i *interpreter) InterpretCases(input *InterpretExprInput) *InterpretExprOu
 	cases := input.Expr.Obj["cases"]
 	for _, c := range cases.Arr {
 		switch {
-		case keysMatch(c, []string{"when", "then"}, nil):
+		case hasKey(c, "when"):
 			when := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("when"), Defs: input.Defs, Expr: c.Obj["when"]})
-			if when.Status != Status_OK {
+			if when.Status != InterpretExprOutput_OK {
 				return when
 			}
-			if when.Value.Type != yaml.Type_BOOL {
-				return errorUnexpectedType(path.AppendKey("when"), []yaml.Type{yaml.Type_BOOL}, when.Value.Type)
+			if when.Value.Type != yaml.Type_TYPE_BOOL {
+				return errorUnexpectedType(path.AppendKey("when"), []yaml.Type{yaml.Type_TYPE_BOOL}, when.Value.Type)
 			}
 			if when.Value.Bool {
 				then := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("then"), Defs: input.Defs, Expr: c.Obj["then"]})
-				if then.Status != Status_OK {
+				if then.Status != InterpretExprOutput_OK {
 					return then
 				}
 				return then
 			}
-		case keysMatch(c, []string{"otherwise"}, nil):
+		case hasKey(c, "otherwise"):
 			otherwise := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("otherwise"), Defs: input.Defs, Expr: c.Obj["otherwise"]})
-			if otherwise.Status != Status_OK {
+			if otherwise.Status != InterpretExprOutput_OK {
 				return otherwise
 			}
 			return otherwise
@@ -303,7 +332,7 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 	for k, v := range input.Expr.Obj { // only one property exists
 		operator = k
 		o := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: v})
-		if o.Status != Status_OK {
+		if o.Status != InterpretExprOutput_OK {
 			return o
 		}
 		operand = o.Value
@@ -314,41 +343,41 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 	case OpUnary_LEN.KeyName():
 		switch operand.Type {
 		default:
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_STR, yaml.Type_ARR}, operand.Type)
-		case yaml.Type_STR:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Str))}}
-		case yaml.Type_ARR:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Arr))}}
-		case yaml.Type_OBJ:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(len(operand.Obj))}}
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR}, operand.Type)
+		case yaml.Type_TYPE_STR:
+			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Str))}}
+		case yaml.Type_TYPE_ARR:
+			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Arr))}}
+		case yaml.Type_TYPE_OBJ:
+			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Obj))}}
 		}
 	case OpUnary_NOT.KeyName():
-		if operand.Type != yaml.Type_BOOL {
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_BOOL}, operand.Type)
+		if operand.Type != yaml.Type_TYPE_BOOL {
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: !operand.Bool}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !operand.Bool}}
 	case OpUnary_FLAT.KeyName():
-		if operand.Type != yaml.Type_ARR {
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_ARR}, operand.Type)
+		if operand.Type != yaml.Type_TYPE_ARR {
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_ARR}, operand.Type)
 		}
 		v := []*yaml.Value{}
 		for _, elem := range operand.Arr {
-			if elem.Type != yaml.Type_ARR {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_ARR}, elem.Type)
+			if elem.Type != yaml.Type_TYPE_ARR {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_ARR}, elem.Type)
 			}
 			v = append(v, elem.Arr...)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_ARR, Arr: v}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 	case OpUnary_FLOOR.KeyName():
-		if operand.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+		if operand.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: math.Floor(operand.Num)}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Floor(operand.Num)}}
 	case OpUnary_CEIL.KeyName():
-		if operand.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+		if operand.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: math.Ceil(operand.Num)}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Ceil(operand.Num)}}
 	}
 }
 
@@ -360,11 +389,11 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 	for k, v := range input.Expr.Obj { // only one property exists
 		operator = k
 		ol := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k).AppendIndex(0), Defs: input.Defs, Expr: v.Arr[0]})
-		if ol.Status != Status_OK {
+		if ol.Status != InterpretExprOutput_OK {
 			return ol
 		}
 		or := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k).AppendIndex(1), Defs: input.Defs, Expr: v.Arr[1]})
-		if or.Status != Status_OK {
+		if or.Status != InterpretExprOutput_OK {
 			return or
 		}
 		operandL, operandR = ol.Value, or.Value
@@ -373,27 +402,27 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 	default:
 		return errorUnsupportedOperation(input.Path, operator)
 	case OpBinary_SUB.KeyName():
-		if operandL.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_NUM}, operandL.Type)
+		if operandL.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
 		}
-		if operandR.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_NUM}, operandR.Type)
+		if operandR.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: operandL.Num - operandR.Num}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num - operandR.Num}}
 	case OpBinary_DIV.KeyName():
-		if operandL.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_NUM}, operandL.Type)
+		if operandL.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
 		}
-		if operandR.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_NUM}, operandR.Type)
+		if operandR.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: operandL.Num / operandR.Num}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num / operandR.Num}}
 	case OpBinary_MOD.KeyName():
-		if operandL.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_NUM}, operandL.Type)
+		if operandL.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
 		}
-		if operandR.Type != yaml.Type_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_NUM}, operandR.Type)
+		if operandR.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
 		}
 		if !operandL.CanInt() {
 			return errorArithmeticError(input.Path.AppendKey(operator).AppendIndex(0), fmt.Sprintf("left operand %v is not an integer", operandL.Num))
@@ -404,39 +433,39 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if operandR.Num == 0 {
 			return errorArithmeticError(input.Path.AppendKey(operator).AppendIndex(1), "division by zero")
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: float64(int(operandL.Num) % int(operandR.Num))}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(int(operandL.Num) % int(operandR.Num))}}
 	case OpBinary_EQ.KeyName():
 		return equal(input.Path.AppendKey(operator), operandL, operandR)
 	case OpBinary_NEQ.KeyName():
 		eq := equal(input.Path.AppendKey(operator), operandL, operandR)
-		if eq.Status != Status_OK {
+		if eq.Status != InterpretExprOutput_OK {
 			return eq
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: !eq.Value.Bool}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !eq.Value.Bool}}
 	case OpBinary_LT.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != Status_OK {
+		if cmp.Status != InterpretExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num < 0}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num < 0}}
 	case OpBinary_LTE.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != Status_OK {
+		if cmp.Status != InterpretExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num <= 0}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num <= 0}}
 	case OpBinary_GT.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != Status_OK {
+		if cmp.Status != InterpretExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num > 0}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num > 0}}
 	case OpBinary_GTE.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != Status_OK {
+		if cmp.Status != InterpretExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: cmp.Value.Num >= 0}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num >= 0}}
 	}
 }
 
@@ -449,7 +478,7 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 		operator = k
 		for _, e := range v.Arr {
 			o := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: e})
-			if o.Status != Status_OK {
+			if o.Status != InterpretExprOutput_OK {
 				return o
 			}
 			operands = append(operands, o.Value)
@@ -461,102 +490,102 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 	case OpVariadic_ADD.KeyName():
 		add := 0.0
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_NUM {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_NUM {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 			}
 			add += operand.Num
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: add}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: add}}
 	case OpVariadic_MUL.KeyName():
 		mul := 1.0
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_NUM {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_NUM {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 			}
 			mul *= operand.Num
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: mul}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: mul}}
 	case OpVariadic_AND.KeyName():
 		and := true
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_BOOL {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_BOOL}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_BOOL {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
 			and = and && operand.Bool
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: and}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: and}}
 	case OpVariadic_OR.KeyName():
 		or := false
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_BOOL {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_BOOL}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_BOOL {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
 			or = or || operand.Bool
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: or}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: or}}
 	case OpVariadic_CAT.KeyName():
 		cat := ""
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_STR {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_STR}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_STR {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR}, operand.Type)
 			}
 			cat += operand.Str
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_STR, Str: cat}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: cat}}
 	case OpVariadic_MIN.KeyName():
 		min_ := math.Inf(1)
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_NUM {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_NUM {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 			}
 			min_ = math.Min(min_, operand.Num)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: min_}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: min_}}
 	case OpVariadic_MAX.KeyName():
 		max_ := math.Inf(-1)
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_NUM {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_NUM}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_NUM {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
 			}
 			max_ = math.Max(max_, operand.Num)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: max_}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: max_}}
 	case OpVariadic_MERGE.KeyName():
 		merge := map[string]*yaml.Value{}
 		for _, operand := range operands {
-			if operand.Type != yaml.Type_OBJ {
-				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_OBJ}, operand.Type)
+			if operand.Type != yaml.Type_TYPE_OBJ {
+				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_OBJ}, operand.Type)
 			}
 			for k, v := range operand.Obj {
 				merge[k] = v
 			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_OBJ, Obj: merge}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: merge}}
 	}
 }
 
 func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
-	falseValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: false}}
-	trueValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: true}}
+	falseValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
+	trueValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
 	switch {
 	default:
-		return errorUnexpectedType(path, []yaml.Type{yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR, yaml.Type_ARR, yaml.Type_OBJ}, l.Type)
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, l.Type)
 	case l.Type != r.Type:
 		return falseValue
-	case l.Type == yaml.Type_NUM:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Num == r.Num}}
-	case l.Type == yaml.Type_BOOL:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Bool == r.Bool}}
-	case l.Type == yaml.Type_STR:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_BOOL, Bool: l.Str == r.Str}}
-	case l.Type == yaml.Type_ARR:
+	case l.Type == yaml.Type_TYPE_NUM:
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Num == r.Num}}
+	case l.Type == yaml.Type_TYPE_BOOL:
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Bool == r.Bool}}
+	case l.Type == yaml.Type_TYPE_STR:
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Str == r.Str}}
+	case l.Type == yaml.Type_TYPE_ARR:
 		if len(l.Arr) != len(r.Arr) {
 			return falseValue
 		}
 		for i, l := range l.Arr {
 			r := r.Arr[i]
 			eq := equal(path, l, r)
-			if eq.Status != Status_OK {
+			if eq.Status != InterpretExprOutput_OK {
 				return eq
 			}
 			if !eq.Value.Bool {
@@ -564,7 +593,7 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 			}
 		}
 		return trueValue
-	case l.Type == yaml.Type_OBJ:
+	case l.Type == yaml.Type_TYPE_OBJ:
 		lk, rk := l.Keys(), r.Keys()
 		slices.Sort(lk)
 		slices.Sort(rk)
@@ -574,7 +603,7 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		for k, l := range l.Obj {
 			r := r.Obj[k]
 			eq := equal(path, l, r)
-			if eq.Status != Status_OK {
+			if eq.Status != InterpretExprOutput_OK {
 				return eq
 			}
 			if !eq.Value.Bool {
@@ -585,13 +614,13 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 	}
 }
 func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
-	ltValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: -1}}
-	gtValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: 1}}
-	eqValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_NUM, Num: 0}}
+	ltValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: -1}}
+	gtValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 1}}
+	eqValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 0}}
 	switch {
 	default:
-		return errorUnexpectedType(path, []yaml.Type{yaml.Type_NUM, yaml.Type_BOOL, yaml.Type_STR, yaml.Type_ARR}, l.Type)
-	case l.Type == yaml.Type_NUM && r.Type == yaml.Type_NUM:
+		return errorUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR}, l.Type)
+	case l.Type == yaml.Type_TYPE_NUM && r.Type == yaml.Type_TYPE_NUM:
 		if l.Num < r.Num {
 			return ltValue
 		}
@@ -599,7 +628,7 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 			return gtValue
 		}
 		return eqValue
-	case l.Type == yaml.Type_BOOL && r.Type == yaml.Type_BOOL:
+	case l.Type == yaml.Type_TYPE_BOOL && r.Type == yaml.Type_TYPE_BOOL:
 		if !l.Bool && r.Bool {
 			return ltValue
 		}
@@ -607,7 +636,7 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 			return gtValue
 		}
 		return eqValue
-	case l.Type == yaml.Type_STR && r.Type == yaml.Type_STR:
+	case l.Type == yaml.Type_TYPE_STR && r.Type == yaml.Type_TYPE_STR:
 		if l.Str < r.Str {
 			return ltValue
 		}
@@ -615,11 +644,11 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 			return gtValue
 		}
 		return eqValue
-	case l.Type == yaml.Type_ARR && r.Type == yaml.Type_ARR:
+	case l.Type == yaml.Type_TYPE_ARR && r.Type == yaml.Type_TYPE_ARR:
 		for i, l := range l.Arr {
 			r := r.Arr[i]
 			cmp := compare(path, l, r)
-			if cmp.Status != Status_OK {
+			if cmp.Status != InterpretExprOutput_OK {
 				return cmp
 			}
 			if cmp.Value.Num != 0 {
@@ -638,72 +667,65 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 
 func errorUnsupportedExpr(path *Path, v *yaml.Value) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_UNSUPPORTED_EXPR_ERROR,
+		Status:       InterpretExprOutput_UNSUPPORTED_EXPR,
 		ErrorMessage: fmt.Sprintf("unsupported expr: got %v", v.Keys()),
 		ErrorPath:    path,
 	}
 }
 func errorUnexpectedType(path *Path, want []yaml.Type, got yaml.Type) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_UNEXPECTED_TYPE_ERROR,
+		Status:       InterpretExprOutput_UNEXPECTED_TYPE,
 		ErrorMessage: fmt.Sprintf("unexpected type: want %v, got %v", want, got),
 		ErrorPath:    path,
 	}
 }
 func errorArithmeticError(path *Path, message string) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_ARITHMETIC_ERROR,
+		Status:       InterpretExprOutput_ARITHMETIC_ERROR,
 		ErrorMessage: fmt.Sprintf("arithmetic error: %v", message),
 		ErrorPath:    path,
 	}
 }
 func errorIndexOutOfBounds(path *Path, begin, end, index int) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_INDEX_OUT_OF_BOUNDS_ERROR,
+		Status:       InterpretExprOutput_INDEX_OUT_OF_BOUNDS,
 		ErrorMessage: fmt.Sprintf("index out of bounds: %v not in [%v, %v)", index, begin, end),
 		ErrorPath:    path,
 	}
 }
 func errorKeyNotFound(path *Path, keys []string, key string) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_KEY_NOT_FOUND_ERROR,
+		Status:       InterpretExprOutput_KEY_NOT_FOUND,
 		ErrorMessage: fmt.Sprintf("key not found: %v not in {%v}", key, strings.Join(keys, ",")),
 		ErrorPath:    path,
 	}
 }
 func errorReferenceNotFound(path *Path, ref string) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_REFERENCE_NOT_FOUND_ERROR,
+		Status:       InterpretExprOutput_REFERENCE_NOT_FOUND,
 		ErrorMessage: fmt.Sprintf("reference not found: %v", ref),
 		ErrorPath:    path,
 	}
 }
 func errorCasesNotExhaustive(path *Path) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_CASES_NOT_EXHAUSTIVE_ERROR,
+		Status:       InterpretExprOutput_CASES_NOT_EXHAUSTIVE,
 		ErrorMessage: fmt.Sprintf("cases not exhaustive: %v", path.Format()),
 		ErrorPath:    path,
 	}
 }
 func errorUnsupportedOperation(path *Path, op string) *InterpretExprOutput {
 	return &InterpretExprOutput{
-		Status:       Status_UNSUPPORTED_OPERATION_ERROR,
+		Status:       InterpretExprOutput_UNSUPPORTED_OPERATION,
 		ErrorMessage: fmt.Sprintf("unsupported operation: %v", op),
 		ErrorPath:    path,
 	}
 }
-
-func keysMatch(v *yaml.Value, required []string, optional []string) bool {
-	keys := v.Keys()
-	for _, k := range required {
-		if !slices.Contains(keys, k) {
-			return false
+func hasKey(v *yaml.Value, k string) bool {
+	for _, key := range v.Keys() {
+		if key == k {
+			return true
 		}
 	}
-	for _, k := range keys {
-		if !slices.Contains(append(append([]string{}, required...), optional...), k) {
-			return false
-		}
-	}
-	return true
+	return false
 }
