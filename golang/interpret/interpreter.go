@@ -53,7 +53,7 @@ func (i *interpreter) Interpret(input *InterpretInput) *InterpretOutput {
 	}
 
 	// Interpret input
-	e := i.InterpretExpr(&InterpretExprInput{Path: &Path{}, Defs: &FunDefList{}, Expr: v.Value})
+	e := i.InterpretExpr(&InterpretExprInput{Path: &Path{}, Defs: EmptyFunDefList(), Expr: v.Value})
 	if e.Status != InterpretExprOutput_OK {
 		return &InterpretOutput{
 			Status:        InterpretOutput_EXPR_ERROR,

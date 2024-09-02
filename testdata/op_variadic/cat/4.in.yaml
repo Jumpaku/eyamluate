@@ -1,0 +1,1 @@
+cat: [ { json: abc }, { json: def }, { json: ghi } ]

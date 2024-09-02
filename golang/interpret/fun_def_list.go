@@ -1,5 +1,9 @@
 package interpret
 
+func EmptyFunDefList() *FunDefList {
+	return nil
+}
+
 func (l *FunDefList) Register(def *FunDef) *FunDefList {
 	return &FunDefList{
 		Parent: l,

@@ -1,0 +1,15 @@
+eval:
+  ref: c
+where:
+  - def: a
+    value: { json: -123.5 }
+  - def: b
+    value: { json: abc }
+  - def: c
+    value: { json: true }
+  - def: d
+    value: { json: false }
+  - def: e
+    value: { json: { } }
+  - def: f
+    value: { json: [ ] }

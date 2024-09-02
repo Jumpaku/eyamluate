@@ -1,0 +1,5 @@
+merge:
+  - json:
+      x: 1
+  - json:
+      y: 2
