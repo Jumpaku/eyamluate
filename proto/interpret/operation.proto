@@ -21,7 +21,6 @@ message OpBinary {
     UNSPECIFIED = 0;
     SUB = 1;
     DIV = 2;
-    MOD = 3;
     EQ = 4;
     NEQ = 5;
     LT = 6;

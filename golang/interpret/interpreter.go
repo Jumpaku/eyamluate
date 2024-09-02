@@ -96,7 +96,6 @@ func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOut
 			return i.InterpretOpUnary(input)
 		case hasKey(input.Expr, OpBinary_SUB.KeyName()),
 			hasKey(input.Expr, OpBinary_DIV.KeyName()),
-			hasKey(input.Expr, OpBinary_MOD.KeyName()),
 			hasKey(input.Expr, OpBinary_EQ.KeyName()),
 			hasKey(input.Expr, OpBinary_NEQ.KeyName()),
 			hasKey(input.Expr, OpBinary_LT.KeyName()),
@@ -289,7 +288,7 @@ func (i *interpreter) InterpretFunCall(input *InterpretExprInput) *InterpretExpr
 	if funDef == nil {
 		return errorReferenceNotFound(path.AppendKey("ref"), ref.Str)
 	}
-	st := input.Defs
+	st := funDef
 	for _, argName := range funDef.Def.With {
 		with, ok := funCall.Obj["with"]
 		if !ok {
@@ -299,7 +298,12 @@ func (i *interpreter) InterpretFunCall(input *InterpretExprInput) *InterpretExpr
 		if !ok {
 			return errorKeyNotFound(path.AppendKey("with"), with.Keys(), argName)
 		}
-		st = st.Register(&FunDef{Def: argName, Value: argVal, Path: path.AppendKey("with").AppendKey(argName)})
+		arg := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("with").AppendKey(argName), Defs: input.Defs, Expr: argVal})
+		if arg.Status != InterpretExprOutput_OK {
+			return arg
+		}
+		jsonExpr := &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: map[string]*yaml.Value{"json": arg.Value}}
+		st = st.Register(&FunDef{Def: argName, Value: jsonExpr, Path: path.AppendKey("with").AppendKey(argName)})
 	}
 	return i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("ref"), Defs: st, Expr: funDef.Def.Value})
 }
@@ -307,7 +311,8 @@ func (i *interpreter) InterpretFunCall(input *InterpretExprInput) *InterpretExpr
 func (i *interpreter) InterpretCases(input *InterpretExprInput) *InterpretExprOutput {
 	path := input.Path
 	cases := input.Expr.Obj["cases"]
-	for _, c := range cases.Arr {
+	for pos, c := range cases.Arr {
+		path := path.AppendKey("cases").AppendIndex(pos)
 		switch {
 		case hasKey(c, "when"):
 			when := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("when"), Defs: input.Defs, Expr: c.Obj["when"]})
@@ -442,18 +447,6 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: operandL.Num / operandR.Num}
 		if !isFiniteNumber(v) {
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("%v/%v is not a finite number", operandL.Num, operandR.Num))
-		}
-		return &InterpretExprOutput{Value: v}
-	case OpBinary_MOD.KeyName():
-		if operandL.Type != yaml.Type_TYPE_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
-		}
-		if operandR.Type != yaml.Type_TYPE_NUM {
-			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(1), []yaml.Type{yaml.Type_TYPE_NUM}, operandR.Type)
-		}
-		v := &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: math.Mod(operandL.Num, operandR.Num)}
-		if !isFiniteNumber(v) {
-			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("mod(%v,%v) is not a finite number", operandL.Num, operandR.Num))
 		}
 		return &InterpretExprOutput{Value: v}
 	case OpBinary_EQ.KeyName():

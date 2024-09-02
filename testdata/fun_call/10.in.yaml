@@ -1,0 +1,29 @@
+eval:
+  ref: fibonacci
+  with:
+    n: 5
+where:
+  - def: first
+    value: 0
+  - def: second
+    value: 1
+  - def: fibonacci
+    with: [ n ]
+    value:
+      cases:
+        - when:
+            eq: [ { ref: n }, 0 ]
+          then:
+            ref: first
+        - when:
+            eq: [ { ref: n }, 1 ]
+          then:
+            ref: second
+        - otherwise:
+            add:
+              - ref: fibonacci
+                with:
+                  n: { sub: [ { ref: n }, 1 ] }
+              - ref: fibonacci
+                with:
+                  n: { sub: [ { ref: n }, 2 ] }

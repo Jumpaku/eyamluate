@@ -191,8 +191,6 @@ definitions:
         "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
       div:
         "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
-      mod:
-        "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
       eq:
         "$ref": "#/definitions/OpBinary/definitions/OpBinaryOperand"
       neq:

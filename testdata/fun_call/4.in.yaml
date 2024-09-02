@@ -1,0 +1,17 @@
+eval:
+  ref: factorial
+  with: { n: 3 }
+where:
+  - def: factorial
+    with: [ n ]
+    value:
+      cases:
+        - when:
+            eq: [ { ref: n }, 0 ]
+          then: 1
+        - otherwise:
+            mul:
+              - ref: n
+              - ref: factorial
+                with:
+                  n: { sub: [ { ref: n }, 1 ] }

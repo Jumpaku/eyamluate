@@ -1,0 +1,9 @@
+eval:
+  ref: id
+  with:
+    y: 1
+where:
+  - def: id
+    with: [x]
+    value:
+      ref: x
