@@ -66,8 +66,7 @@ func (i *interpreter) Interpret(input *InterpretInput) *InterpretOutput {
 }
 
 func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOutput {
-	v := input.Expr
-	switch v.Type {
+	switch input.Expr.Type {
 	case yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR:
 		return i.InterpretScalar(input)
 	case yaml.Type_TYPE_OBJ:
@@ -116,7 +115,7 @@ func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOut
 			return i.InterpretOpVariadic(input)
 		}
 	}
-	return errorUnsupportedExpr(input.Path, v)
+	return errorUnsupportedExpr(input.Path, input.Expr)
 }
 
 func (i *interpreter) InterpretEval(input *InterpretExprInput) *InterpretExprOutput {
@@ -672,8 +671,12 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		}
 		return eqValue
 	case l.Type == yaml.Type_TYPE_ARR && r.Type == yaml.Type_TYPE_ARR:
-		for i, l := range l.Arr {
-			r := r.Arr[i]
+		n := len(l.Arr)
+		if n > len(r.Arr) {
+			n = len(r.Arr)
+		}
+		for i := 0; i < n; i++ {
+			l, r := l.Arr[i], r.Arr[i]
 			cmp := compare(path, l, r)
 			if cmp.Status != InterpretExprOutput_OK {
 				return cmp
@@ -723,31 +726,31 @@ func errorIndexOutOfBounds(path *Path, begin, end, index int) *InterpretExprOutp
 		ErrorPath:    path,
 	}
 }
-func errorKeyNotFound(path *Path, keys []string, key string) *InterpretExprOutput {
+func errorKeyNotFound(path *Path, want []string, got string) *InterpretExprOutput {
 	return &InterpretExprOutput{
 		Status:       InterpretExprOutput_KEY_NOT_FOUND,
-		ErrorMessage: fmt.Sprintf("key not found: %v not in {%v}", key, strings.Join(keys, ",")),
+		ErrorMessage: fmt.Sprintf("key not found: %q not in {%v}", got, strings.Join(want, ",")),
 		ErrorPath:    path,
 	}
 }
 func errorReferenceNotFound(path *Path, ref string) *InterpretExprOutput {
 	return &InterpretExprOutput{
 		Status:       InterpretExprOutput_REFERENCE_NOT_FOUND,
-		ErrorMessage: fmt.Sprintf("reference not found: %v", ref),
+		ErrorMessage: fmt.Sprintf("reference not found: %q", ref),
 		ErrorPath:    path,
 	}
 }
 func errorCasesNotExhaustive(path *Path) *InterpretExprOutput {
 	return &InterpretExprOutput{
 		Status:       InterpretExprOutput_CASES_NOT_EXHAUSTIVE,
-		ErrorMessage: fmt.Sprintf("cases not exhaustive: %v", path.Format()),
+		ErrorMessage: "cases not exhaustive",
 		ErrorPath:    path,
 	}
 }
-func errorUnsupportedOperation(path *Path, op string) *InterpretExprOutput {
+func errorUnsupportedOperation(path *Path, gotOp string) *InterpretExprOutput {
 	return &InterpretExprOutput{
 		Status:       InterpretExprOutput_UNSUPPORTED_OPERATION,
-		ErrorMessage: fmt.Sprintf("unsupported operation: %v", op),
+		ErrorMessage: fmt.Sprintf("unsupported operation: %q", gotOp),
 		ErrorPath:    path,
 	}
 }

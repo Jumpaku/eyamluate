@@ -1,0 +1,3 @@
+lt:
+  - json: [ -123.5, abc, true, false, [ ], x ]
+  - json: [ -123.5, abc, true, false, [ ] ]

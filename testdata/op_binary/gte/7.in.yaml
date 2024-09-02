@@ -1,0 +1,3 @@
+gte:
+  - json: def
+  - json: abc
