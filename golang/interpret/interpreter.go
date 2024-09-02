@@ -244,7 +244,19 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 
 	switch from.Value.Type {
 	default:
-		return errorUnexpectedType(path.AppendKey("from"), []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, from.Value.Type)
+		return errorUnexpectedType(path.AppendKey("from"), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, from.Value.Type)
+	case yaml.Type_TYPE_STR:
+		if get.Value.Type != yaml.Type_TYPE_NUM {
+			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_NUM}, get.Value.Type)
+		}
+		if !get.Value.CanInt() {
+			return errorArithmeticError(path.AppendKey("get"), fmt.Sprintf("index %v is not an integer", get.Value.Num))
+		}
+		pos := int(get.Value.Num)
+		if pos < 0 || pos >= len([]rune(from.Value.Str)) {
+			return errorIndexOutOfBounds(path.AppendKey("get"), 0, len(from.Value.Arr), pos)
+		}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: string([]rune(from.Value.Str)[pos])}}
 	case yaml.Type_TYPE_ARR:
 		if get.Value.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_NUM}, get.Value.Type)
@@ -262,7 +274,7 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_STR}, get.Value.Type)
 		}
 		pos := get.Value.Str
-		if _, ok := from.Value.Obj[pos]; ok {
+		if _, ok := from.Value.Obj[pos]; !ok {
 			return errorKeyNotFound(path.AppendKey("get"), from.Value.Keys(), pos)
 		}
 		return &InterpretExprOutput{Value: from.Value.Obj[pos]}

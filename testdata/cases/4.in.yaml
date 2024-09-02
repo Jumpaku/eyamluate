@@ -1,0 +1,15 @@
+cases:
+  - when:
+      json: false
+    then:
+      json: 1
+  - when:
+      json: false
+    then:
+      json: 2
+  - otherwise:
+      json: 3
+  - when:
+      json: false
+    then:
+      json: 4
