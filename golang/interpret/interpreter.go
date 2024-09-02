@@ -544,23 +544,25 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 		}
 		return &InterpretExprOutput{Value: v}
 	case OpVariadic_AND.KeyName():
-		and := true
 		for _, operand := range operands {
 			if operand.Type != yaml.Type_TYPE_BOOL {
 				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
-			and = and && operand.Bool
+			if !operand.Bool {
+				return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
+			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: and}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
 	case OpVariadic_OR.KeyName():
-		or := false
 		for _, operand := range operands {
 			if operand.Type != yaml.Type_TYPE_BOOL {
 				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
-			or = or || operand.Bool
+			if operand.Bool {
+				return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
+			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: or}}
+		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
 	case OpVariadic_CAT.KeyName():
 		cat := ""
 		for _, operand := range operands {
