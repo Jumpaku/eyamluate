@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package interpret;
+package eval;
 
-option go_package = "github.com/Jumpaku/eyamlate/golang/interpret";
+option go_package = "github.com/Jumpaku/eyamlate/golang/eval";
 
 message OpUnary {
   enum Operator {

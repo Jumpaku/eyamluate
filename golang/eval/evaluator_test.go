@@ -1,4 +1,4 @@
-package interpret
+package eval
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestInterpreter_Interpret(t *testing.T) {
+func TestEvaluator_Evaluate(t *testing.T) {
 	type Testcase struct {
 		YamlInput string
 		WantValue *yaml.Value
@@ -72,11 +72,11 @@ func TestInterpreter_Interpret(t *testing.T) {
 	for _, name := range testcaseKeys {
 		testcase := testcases[name]
 		t.Run(name, func(t *testing.T) {
-			got := NewInterpreter().Interpret(&InterpretInput{Source: testcase.YamlInput})
+			got := NewEvaluator().Evaluate(&EvaluateInput{Source: testcase.YamlInput})
 			if testcase.WantError {
-				require.NotEqual(t, got.Status, InterpretOutput_OK)
+				require.NotEqual(t, got.Status, EvaluateOutput_OK)
 			} else {
-				require.Equal(t, got.Status, InterpretOutput_OK)
+				require.Equal(t, got.Status, EvaluateOutput_OK)
 				require.Nil(t, checkEqual([]string{}, testcase.WantValue, got.Value))
 			}
 		})

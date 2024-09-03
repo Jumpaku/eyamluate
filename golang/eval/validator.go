@@ -1,4 +1,4 @@
-package interpret
+package eval
 
 import (
 	"bytes"
@@ -27,16 +27,11 @@ func NewValidator() Validator {
 	}
 
 	c := jsonschema.NewCompiler()
-	if err := c.AddResource("schema", v); err != nil {
+	if err := c.AddResource("https://github.com/Jumpaku/eyamluate", v); err != nil {
 		panic(fmt.Sprintf("fail to add schema: %+v", err))
 	}
 
-	s, err := c.Compile("schema")
-	if err != nil {
-		panic(fmt.Sprintf("fail to compile schema: %+v", err))
-	}
-
-	return &validator{schema: s}
+	return &validator{schema: c.MustCompile("https://github.com/Jumpaku/eyamluate")}
 }
 
 type validator struct {
@@ -63,10 +58,11 @@ func (v *validator) Validate(input *ValidateInput) *ValidateOutput {
 	}
 
 	if err := v.schema.Validate(sourceJSON); err != nil {
-		return &ValidateOutput{
+		vo := &ValidateOutput{
 			Status:       ValidateOutput_VALIDATION_ERROR,
-			ErrorMessage: fmt.Sprintf("validation error: %+v", err),
+			ErrorMessage: fmt.Sprintf("validation error: %#+v", err),
 		}
+		return vo
 	}
 
 	return &ValidateOutput{Status: ValidateOutput_OK}

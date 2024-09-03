@@ -1,4 +1,4 @@
-package interpret
+package eval
 
 import (
 	"fmt"

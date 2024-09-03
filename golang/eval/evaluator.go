@@ -1,4 +1,4 @@
-package interpret
+package eval
 
 import (
 	"fmt"
@@ -8,35 +8,35 @@ import (
 	"strings"
 )
 
-type Interpreter interface {
-	Interpret(*InterpretInput) *InterpretOutput
-	InterpretExpr(*InterpretExprInput) *InterpretExprOutput
-	InterpretEval(*InterpretExprInput) *InterpretExprOutput
-	InterpretScalar(*InterpretExprInput) *InterpretExprOutput
-	InterpretObj(*InterpretExprInput) *InterpretExprOutput
-	InterpretArr(*InterpretExprInput) *InterpretExprOutput
-	InterpretJson(*InterpretExprInput) *InterpretExprOutput
-	InterpretRangeIter(*InterpretExprInput) *InterpretExprOutput
-	InterpretGetElem(*InterpretExprInput) *InterpretExprOutput
-	InterpretFunCall(*InterpretExprInput) *InterpretExprOutput
-	InterpretCases(*InterpretExprInput) *InterpretExprOutput
-	InterpretOpUnary(*InterpretExprInput) *InterpretExprOutput
-	InterpretOpBinary(*InterpretExprInput) *InterpretExprOutput
-	InterpretOpVariadic(*InterpretExprInput) *InterpretExprOutput
+type Evaluator interface {
+	Evaluate(*EvaluateInput) *EvaluateOutput
+	EvaluateExpr(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateEval(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateScalar(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateObj(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateArr(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateJson(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateRangeIter(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateGetElem(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateFunCall(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateCases(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateOpUnary(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateOpBinary(*EvaluateExprInput) *EvaluateExprOutput
+	EvaluateOpVariadic(*EvaluateExprInput) *EvaluateExprOutput
 }
 
-func NewInterpreter() Interpreter {
-	return &interpreter{}
+func NewEvaluator() Evaluator {
+	return &evaluator{}
 }
 
-type interpreter struct{}
+type evaluator struct{}
 
-func (i *interpreter) Interpret(input *InterpretInput) *InterpretOutput {
+func (i *evaluator) Evaluate(input *EvaluateInput) *EvaluateOutput {
 	// Decode input
 	v := yaml.NewDecoder().Decode(&yaml.DecodeInput{Yaml: input.Source})
 	if v.IsError {
-		return &InterpretOutput{
-			Status:       InterpretOutput_DECODE_ERROR,
+		return &EvaluateOutput{
+			Status:       EvaluateOutput_DECODE_ERROR,
 			ErrorMessage: v.ErrorMessage,
 		}
 	}
@@ -45,55 +45,55 @@ func (i *interpreter) Interpret(input *InterpretInput) *InterpretOutput {
 	{
 		v := NewValidator().Validate(&ValidateInput{Source: input.Source})
 		if v.Status != ValidateOutput_OK {
-			return &InterpretOutput{
-				Status:       InterpretOutput_VALIDATE_ERROR,
+			return &EvaluateOutput{
+				Status:       EvaluateOutput_VALIDATE_ERROR,
 				ErrorMessage: v.ErrorMessage,
 			}
 		}
 	}
 
-	// Interpret input
-	e := i.InterpretExpr(&InterpretExprInput{Path: &Path{}, Defs: EmptyFunDefList(), Expr: v.Value})
-	if e.Status != InterpretExprOutput_OK {
-		return &InterpretOutput{
-			Status:        InterpretOutput_EXPR_ERROR,
+	// Evaluate input
+	e := i.EvaluateExpr(&EvaluateExprInput{Path: &Path{}, Defs: EmptyFunDefList(), Expr: v.Value})
+	if e.Status != EvaluateExprOutput_OK {
+		return &EvaluateOutput{
+			Status:        EvaluateOutput_EXPR_ERROR,
 			ErrorMessage:  e.ErrorMessage,
 			ExprStatus:    e.Status,
 			ExprErrorPath: e.ErrorPath,
 		}
 	}
-	return &InterpretOutput{Value: e.Value}
+	return &EvaluateOutput{Value: e.Value}
 }
 
-func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateExpr(input *EvaluateExprInput) *EvaluateExprOutput {
 	switch input.Expr.Type {
 	case yaml.Type_TYPE_BOOL, yaml.Type_TYPE_NUM, yaml.Type_TYPE_STR:
-		return i.InterpretScalar(input)
+		return i.EvaluateScalar(input)
 	case yaml.Type_TYPE_OBJ:
 		switch {
 		case hasKey(input.Expr, "eval"):
-			return i.InterpretEval(input)
+			return i.EvaluateEval(input)
 		case hasKey(input.Expr, "obj"):
-			return i.InterpretObj(input)
+			return i.EvaluateObj(input)
 		case hasKey(input.Expr, "arr"):
-			return i.InterpretArr(input)
+			return i.EvaluateArr(input)
 		case hasKey(input.Expr, "json"):
-			return i.InterpretJson(input)
+			return i.EvaluateJson(input)
 		case hasKey(input.Expr, "for"):
-			return i.InterpretRangeIter(input)
+			return i.EvaluateRangeIter(input)
 		case hasKey(input.Expr, "get"):
-			return i.InterpretGetElem(input)
+			return i.EvaluateGetElem(input)
 		case hasKey(input.Expr, "ref"):
-			return i.InterpretFunCall(input)
+			return i.EvaluateFunCall(input)
 		case hasKey(input.Expr, "cases"):
-			return i.InterpretCases(input)
+			return i.EvaluateCases(input)
 		case hasKey(input.Expr, OpUnary_LEN.KeyName()),
 			hasKey(input.Expr, OpUnary_NOT.KeyName()),
 			hasKey(input.Expr, OpUnary_FLAT.KeyName()),
 			hasKey(input.Expr, OpUnary_FLOOR.KeyName()),
 			hasKey(input.Expr, OpUnary_CEIL.KeyName()),
 			hasKey(input.Expr, OpUnary_ABORT.KeyName()):
-			return i.InterpretOpUnary(input)
+			return i.EvaluateOpUnary(input)
 		case hasKey(input.Expr, OpBinary_SUB.KeyName()),
 			hasKey(input.Expr, OpBinary_DIV.KeyName()),
 			hasKey(input.Expr, OpBinary_EQ.KeyName()),
@@ -102,7 +102,7 @@ func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOut
 			hasKey(input.Expr, OpBinary_LTE.KeyName()),
 			hasKey(input.Expr, OpBinary_GT.KeyName()),
 			hasKey(input.Expr, OpBinary_GTE.KeyName()):
-			return i.InterpretOpBinary(input)
+			return i.EvaluateOpBinary(input)
 		case hasKey(input.Expr, OpVariadic_ADD.KeyName()),
 			hasKey(input.Expr, OpVariadic_MUL.KeyName()),
 			hasKey(input.Expr, OpVariadic_AND.KeyName()),
@@ -111,20 +111,19 @@ func (i *interpreter) InterpretExpr(input *InterpretExprInput) *InterpretExprOut
 			hasKey(input.Expr, OpVariadic_MIN.KeyName()),
 			hasKey(input.Expr, OpVariadic_MAX.KeyName()),
 			hasKey(input.Expr, OpVariadic_MERGE.KeyName()):
-			return i.InterpretOpVariadic(input)
+			return i.EvaluateOpVariadic(input)
 		}
 	}
 	return errorUnsupportedExpr(input.Path, input.Expr)
 }
 
-func (i *interpreter) InterpretEval(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateEval(input *EvaluateExprInput) *EvaluateExprOutput {
 	path := input.Path
 	st := input.Defs
 	if where, ok := input.Expr.Obj["where"]; ok {
+		path := path.AppendKey("where")
 		for pos, w := range where.Arr {
-			path := path.AppendKey("where")
-			def := w.Obj["def"]
-			value := w.Obj["value"]
+			def, value := w.Obj["def"], w.Obj["value"]
 			funDef := &FunDef{Def: def.Str, Value: value, Path: path.AppendIndex(pos)}
 			if with, ok := w.Obj["with"]; ok {
 				for _, w := range with.Arr {
@@ -134,52 +133,52 @@ func (i *interpreter) InterpretEval(input *InterpretExprInput) *InterpretExprOut
 			st = st.Register(funDef)
 		}
 	}
-	return i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("eval"), Defs: st, Expr: input.Expr.Obj["eval"]})
+	return i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("eval"), Defs: st, Expr: input.Expr.Obj["eval"]})
 }
 
-func (i *interpreter) InterpretScalar(input *InterpretExprInput) *InterpretExprOutput {
-	return &InterpretExprOutput{Value: input.Expr}
+func (i *evaluator) EvaluateScalar(input *EvaluateExprInput) *EvaluateExprOutput {
+	return &EvaluateExprOutput{Value: input.Expr}
 }
 
-func (i *interpreter) InterpretObj(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateObj(input *EvaluateExprInput) *EvaluateExprOutput {
 	obj := input.Expr.Obj["obj"]
 	path := input.Path.AppendKey("obj")
 	v := map[string]*yaml.Value{}
 	for pos, val := range obj.Obj {
-		expr := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey(pos), Defs: input.Defs, Expr: val})
-		if expr.Status != InterpretExprOutput_OK {
+		expr := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey(pos), Defs: input.Defs, Expr: val})
+		if expr.Status != EvaluateExprOutput_OK {
 			return expr
 		}
 		v[pos] = expr.Value
 	}
-	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
+	return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
 }
 
-func (i *interpreter) InterpretArr(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateArr(input *EvaluateExprInput) *EvaluateExprOutput {
 	arr := input.Expr.Obj["arr"]
 	path := input.Path.AppendKey("arr")
 	v := []*yaml.Value{}
 	for pos, val := range arr.Arr {
-		expr := i.InterpretExpr(&InterpretExprInput{Path: path.AppendIndex(pos), Defs: input.Defs, Expr: val})
-		if expr.Status != InterpretExprOutput_OK {
+		expr := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendIndex(pos), Defs: input.Defs, Expr: val})
+		if expr.Status != EvaluateExprOutput_OK {
 			return expr
 		}
 		v = append(v, expr.Value)
 	}
-	return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
+	return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 }
 
-func (i *interpreter) InterpretJson(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateJson(input *EvaluateExprInput) *EvaluateExprOutput {
 	v := input.Expr.Obj["json"]
-	return &InterpretExprOutput{Value: v}
+	return &EvaluateExprOutput{Value: v}
 }
 
-func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateRangeIter(input *EvaluateExprInput) *EvaluateExprOutput {
 	path := input.Path
 	for_ := input.Expr.Obj["for"]
 	forPos, forVal := for_.Arr[0].Str, for_.Arr[1].Str
-	in := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("in"), Defs: input.Defs, Expr: input.Expr.Obj["in"]})
-	if in.Status != InterpretExprOutput_OK {
+	in := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("in"), Defs: input.Defs, Expr: input.Expr.Obj["in"]})
+	if in.Status != EvaluateExprOutput_OK {
 		return in
 	}
 	switch in.Value.Type {
@@ -199,13 +198,13 @@ func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretEx
 				Value: val,
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
-			do := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
-			if do.Status != InterpretExprOutput_OK {
+			do := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
+			if do.Status != EvaluateExprOutput_OK {
 				return do
 			}
 			v = append(v, do.Value)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 	case yaml.Type_TYPE_OBJ:
 		v := map[string]*yaml.Value{}
 		for pos, val := range in.Value.Obj {
@@ -220,24 +219,24 @@ func (i *interpreter) InterpretRangeIter(input *InterpretExprInput) *InterpretEx
 				Value: val,
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
-			do := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
-			if do.Status != InterpretExprOutput_OK {
+			do := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
+			if do.Status != EvaluateExprOutput_OK {
 				return do
 			}
 			v[pos] = do.Value
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: v}}
 	}
 }
 
-func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateGetElem(input *EvaluateExprInput) *EvaluateExprOutput {
 	path := input.Path
-	get := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("get"), Defs: input.Defs, Expr: input.Expr.Obj["get"]})
-	if get.Status != InterpretExprOutput_OK {
+	get := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("get"), Defs: input.Defs, Expr: input.Expr.Obj["get"]})
+	if get.Status != EvaluateExprOutput_OK {
 		return get
 	}
-	from := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("from"), Defs: input.Defs, Expr: input.Expr.Obj["from"]})
-	if from.Status != InterpretExprOutput_OK {
+	from := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("from"), Defs: input.Defs, Expr: input.Expr.Obj["from"]})
+	if from.Status != EvaluateExprOutput_OK {
 		return from
 	}
 
@@ -255,7 +254,7 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 		if pos < 0 || pos >= len([]rune(from.Value.Str)) {
 			return errorIndexOutOfBounds(path.AppendKey("get"), 0, len(from.Value.Arr), pos)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: string([]rune(from.Value.Str)[pos])}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: string([]rune(from.Value.Str)[pos])}}
 	case yaml.Type_TYPE_ARR:
 		if get.Value.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_NUM}, get.Value.Type)
@@ -267,7 +266,7 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 		if pos < 0 || pos >= len(from.Value.Arr) {
 			return errorIndexOutOfBounds(path.AppendKey("get"), 0, len(from.Value.Arr), pos)
 		}
-		return &InterpretExprOutput{Value: from.Value.Arr[pos]}
+		return &EvaluateExprOutput{Value: from.Value.Arr[pos]}
 	case yaml.Type_TYPE_OBJ:
 		if get.Value.Type != yaml.Type_TYPE_STR {
 			return errorUnexpectedType(path.AppendKey("get"), []yaml.Type{yaml.Type_TYPE_STR}, get.Value.Type)
@@ -276,11 +275,11 @@ func (i *interpreter) InterpretGetElem(input *InterpretExprInput) *InterpretExpr
 		if _, ok := from.Value.Obj[pos]; !ok {
 			return errorKeyNotFound(path.AppendKey("get"), from.Value.Keys(), pos)
 		}
-		return &InterpretExprOutput{Value: from.Value.Obj[pos]}
+		return &EvaluateExprOutput{Value: from.Value.Obj[pos]}
 	}
 }
 
-func (i *interpreter) InterpretFunCall(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateFunCall(input *EvaluateExprInput) *EvaluateExprOutput {
 	path := input.Path
 	funCall := input.Expr
 	ref := funCall.Obj["ref"]
@@ -298,40 +297,40 @@ func (i *interpreter) InterpretFunCall(input *InterpretExprInput) *InterpretExpr
 		if !ok {
 			return errorKeyNotFound(path.AppendKey("with"), with.Keys(), argName)
 		}
-		arg := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("with").AppendKey(argName), Defs: input.Defs, Expr: argVal})
-		if arg.Status != InterpretExprOutput_OK {
+		arg := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("with").AppendKey(argName), Defs: input.Defs, Expr: argVal})
+		if arg.Status != EvaluateExprOutput_OK {
 			return arg
 		}
 		jsonExpr := &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: map[string]*yaml.Value{"json": arg.Value}}
 		st = st.Register(&FunDef{Def: argName, Value: jsonExpr, Path: path.AppendKey("with").AppendKey(argName)})
 	}
-	return i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("ref"), Defs: st, Expr: funDef.Def.Value})
+	return i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("ref"), Defs: st, Expr: funDef.Def.Value})
 }
 
-func (i *interpreter) InterpretCases(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateCases(input *EvaluateExprInput) *EvaluateExprOutput {
 	path := input.Path
 	cases := input.Expr.Obj["cases"]
 	for pos, c := range cases.Arr {
 		path := path.AppendKey("cases").AppendIndex(pos)
 		switch {
 		case hasKey(c, "when"):
-			when := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("when"), Defs: input.Defs, Expr: c.Obj["when"]})
-			if when.Status != InterpretExprOutput_OK {
+			when := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("when"), Defs: input.Defs, Expr: c.Obj["when"]})
+			if when.Status != EvaluateExprOutput_OK {
 				return when
 			}
 			if when.Value.Type != yaml.Type_TYPE_BOOL {
 				return errorUnexpectedType(path.AppendKey("when"), []yaml.Type{yaml.Type_TYPE_BOOL}, when.Value.Type)
 			}
 			if when.Value.Bool {
-				then := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("then"), Defs: input.Defs, Expr: c.Obj["then"]})
-				if then.Status != InterpretExprOutput_OK {
+				then := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("then"), Defs: input.Defs, Expr: c.Obj["then"]})
+				if then.Status != EvaluateExprOutput_OK {
 					return then
 				}
 				return then
 			}
 		case hasKey(c, "otherwise"):
-			otherwise := i.InterpretExpr(&InterpretExprInput{Path: path.AppendKey("otherwise"), Defs: input.Defs, Expr: c.Obj["otherwise"]})
-			if otherwise.Status != InterpretExprOutput_OK {
+			otherwise := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("otherwise"), Defs: input.Defs, Expr: c.Obj["otherwise"]})
+			if otherwise.Status != EvaluateExprOutput_OK {
 				return otherwise
 			}
 			return otherwise
@@ -340,15 +339,15 @@ func (i *interpreter) InterpretCases(input *InterpretExprInput) *InterpretExprOu
 	return errorCasesNotExhaustive(path)
 }
 
-func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateOpUnary(input *EvaluateExprInput) *EvaluateExprOutput {
 	var (
 		operator string
 		operand  *yaml.Value
 	)
 	for k, v := range input.Expr.Obj { // only one property exists
 		operator = k
-		o := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: v})
-		if o.Status != InterpretExprOutput_OK {
+		o := i.EvaluateExpr(&EvaluateExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: v})
+		if o.Status != EvaluateExprOutput_OK {
 			return o
 		}
 		operand = o.Value
@@ -361,17 +360,17 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 		default:
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR}, operand.Type)
 		case yaml.Type_TYPE_STR:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Str))}}
+			return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Str))}}
 		case yaml.Type_TYPE_ARR:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Arr))}}
+			return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Arr))}}
 		case yaml.Type_TYPE_OBJ:
-			return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Obj))}}
+			return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Obj))}}
 		}
 	case OpUnary_NOT.KeyName():
 		if operand.Type != yaml.Type_TYPE_BOOL {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !operand.Bool}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !operand.Bool}}
 	case OpUnary_FLAT.KeyName():
 		if operand.Type != yaml.Type_TYPE_ARR {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_ARR}, operand.Type)
@@ -383,7 +382,7 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 			}
 			v = append(v, elem.Arr...)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 	case OpUnary_FLOOR.KeyName():
 		if operand.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
@@ -392,7 +391,7 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 		if !isFiniteNumber(v) {
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("floor(%v) is not a finite number", operand.Num))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	case OpUnary_CEIL.KeyName():
 		if operand.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_NUM}, operand.Type)
@@ -401,23 +400,23 @@ func (i *interpreter) InterpretOpUnary(input *InterpretExprInput) *InterpretExpr
 		if !isFiniteNumber(v) {
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("ceil(%v) is not a finite number", operand.Num))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	}
 }
 
-func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateOpBinary(input *EvaluateExprInput) *EvaluateExprOutput {
 	var (
 		operator           string
 		operandL, operandR *yaml.Value
 	)
 	for k, v := range input.Expr.Obj { // only one property exists
 		operator = k
-		ol := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k).AppendIndex(0), Defs: input.Defs, Expr: v.Arr[0]})
-		if ol.Status != InterpretExprOutput_OK {
+		ol := i.EvaluateExpr(&EvaluateExprInput{Path: input.Path.AppendKey(k).AppendIndex(0), Defs: input.Defs, Expr: v.Arr[0]})
+		if ol.Status != EvaluateExprOutput_OK {
 			return ol
 		}
-		or := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k).AppendIndex(1), Defs: input.Defs, Expr: v.Arr[1]})
-		if or.Status != InterpretExprOutput_OK {
+		or := i.EvaluateExpr(&EvaluateExprInput{Path: input.Path.AppendKey(k).AppendIndex(1), Defs: input.Defs, Expr: v.Arr[1]})
+		if or.Status != EvaluateExprOutput_OK {
 			return or
 		}
 		operandL, operandR = ol.Value, or.Value
@@ -436,7 +435,7 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if !isFiniteNumber(v) {
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("%v-%v is not a finite number", operandL.Num, operandR.Num))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	case OpBinary_DIV.KeyName():
 		if operandL.Type != yaml.Type_TYPE_NUM {
 			return errorUnexpectedType(input.Path.AppendKey(operator).AppendIndex(0), []yaml.Type{yaml.Type_TYPE_NUM}, operandL.Type)
@@ -448,43 +447,43 @@ func (i *interpreter) InterpretOpBinary(input *InterpretExprInput) *InterpretExp
 		if !isFiniteNumber(v) {
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("%v/%v is not a finite number", operandL.Num, operandR.Num))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	case OpBinary_EQ.KeyName():
 		return equal(input.Path.AppendKey(operator), operandL, operandR)
 	case OpBinary_NEQ.KeyName():
 		eq := equal(input.Path.AppendKey(operator), operandL, operandR)
-		if eq.Status != InterpretExprOutput_OK {
+		if eq.Status != EvaluateExprOutput_OK {
 			return eq
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !eq.Value.Bool}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: !eq.Value.Bool}}
 	case OpBinary_LT.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != InterpretExprOutput_OK {
+		if cmp.Status != EvaluateExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num < 0}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num < 0}}
 	case OpBinary_LTE.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != InterpretExprOutput_OK {
+		if cmp.Status != EvaluateExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num <= 0}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num <= 0}}
 	case OpBinary_GT.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != InterpretExprOutput_OK {
+		if cmp.Status != EvaluateExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num > 0}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num > 0}}
 	case OpBinary_GTE.KeyName():
 		cmp := compare(input.Path.AppendKey(operator), operandL, operandR)
-		if cmp.Status != InterpretExprOutput_OK {
+		if cmp.Status != EvaluateExprOutput_OK {
 			return cmp
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num >= 0}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: cmp.Value.Num >= 0}}
 	}
 }
 
-func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretExprOutput {
+func (i *evaluator) EvaluateOpVariadic(input *EvaluateExprInput) *EvaluateExprOutput {
 	var (
 		operator string
 		operands []*yaml.Value
@@ -492,8 +491,8 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 	for k, v := range input.Expr.Obj { // only one property exists
 		operator = k
 		for _, e := range v.Arr {
-			o := i.InterpretExpr(&InterpretExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: e})
-			if o.Status != InterpretExprOutput_OK {
+			o := i.EvaluateExpr(&EvaluateExprInput{Path: input.Path.AppendKey(k), Defs: input.Defs, Expr: e})
+			if o.Status != EvaluateExprOutput_OK {
 				return o
 			}
 			operands = append(operands, o.Value)
@@ -518,7 +517,7 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("add(%v) is not a finite number", strings.Join(v, ",")))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	case OpVariadic_MUL.KeyName():
 		mul := 1.0
 		for _, operand := range operands {
@@ -535,27 +534,27 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("mul(%v) is not a finite number", strings.Join(v, ",")))
 		}
-		return &InterpretExprOutput{Value: v}
+		return &EvaluateExprOutput{Value: v}
 	case OpVariadic_AND.KeyName():
 		for _, operand := range operands {
 			if operand.Type != yaml.Type_TYPE_BOOL {
 				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
 			if !operand.Bool {
-				return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
+				return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
 			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
 	case OpVariadic_OR.KeyName():
 		for _, operand := range operands {
 			if operand.Type != yaml.Type_TYPE_BOOL {
 				return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_BOOL}, operand.Type)
 			}
 			if operand.Bool {
-				return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
+				return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
 			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
 	case OpVariadic_CAT.KeyName():
 		cat := ""
 		for _, operand := range operands {
@@ -564,7 +563,7 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			cat += operand.Str
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: cat}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: cat}}
 	case OpVariadic_MIN.KeyName():
 		min_ := math.Inf(1)
 		for _, operand := range operands {
@@ -573,7 +572,7 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			min_ = math.Min(min_, operand.Num)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: min_}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: min_}}
 	case OpVariadic_MAX.KeyName():
 		max_ := math.Inf(-1)
 		for _, operand := range operands {
@@ -582,7 +581,7 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 			}
 			max_ = math.Max(max_, operand.Num)
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: max_}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: max_}}
 	case OpVariadic_MERGE.KeyName():
 		merge := map[string]*yaml.Value{}
 		for _, operand := range operands {
@@ -593,24 +592,24 @@ func (i *interpreter) InterpretOpVariadic(input *InterpretExprInput) *InterpretE
 				merge[k] = v
 			}
 		}
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: merge}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_OBJ, Obj: merge}}
 	}
 }
 
-func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
-	falseValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
-	trueValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
+func equal(path *Path, l, r *yaml.Value) *EvaluateExprOutput {
+	falseValue := &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: false}}
+	trueValue := &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: true}}
 	switch {
 	default:
 		return errorUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, l.Type)
 	case l.Type != r.Type:
 		return falseValue
 	case l.Type == yaml.Type_TYPE_NUM:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Num == r.Num}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Num == r.Num}}
 	case l.Type == yaml.Type_TYPE_BOOL:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Bool == r.Bool}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Bool == r.Bool}}
 	case l.Type == yaml.Type_TYPE_STR:
-		return &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Str == r.Str}}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_BOOL, Bool: l.Str == r.Str}}
 	case l.Type == yaml.Type_TYPE_ARR:
 		if len(l.Arr) != len(r.Arr) {
 			return falseValue
@@ -618,7 +617,7 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		for i, l := range l.Arr {
 			r := r.Arr[i]
 			eq := equal(path, l, r)
-			if eq.Status != InterpretExprOutput_OK {
+			if eq.Status != EvaluateExprOutput_OK {
 				return eq
 			}
 			if !eq.Value.Bool {
@@ -636,7 +635,7 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		for k, l := range l.Obj {
 			r := r.Obj[k]
 			eq := equal(path, l, r)
-			if eq.Status != InterpretExprOutput_OK {
+			if eq.Status != EvaluateExprOutput_OK {
 				return eq
 			}
 			if !eq.Value.Bool {
@@ -646,10 +645,10 @@ func equal(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		return trueValue
 	}
 }
-func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
-	ltValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: -1}}
-	gtValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 1}}
-	eqValue := &InterpretExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 0}}
+func compare(path *Path, l, r *yaml.Value) *EvaluateExprOutput {
+	ltValue := &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: -1}}
+	gtValue := &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 1}}
+	eqValue := &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: 0}}
 	switch {
 	default:
 		return errorUnexpectedType(path, []yaml.Type{yaml.Type_TYPE_NUM, yaml.Type_TYPE_BOOL, yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR}, l.Type)
@@ -685,7 +684,7 @@ func compare(path *Path, l, r *yaml.Value) *InterpretExprOutput {
 		for i := 0; i < n; i++ {
 			l, r := l.Arr[i], r.Arr[i]
 			cmp := compare(path, l, r)
-			if cmp.Status != InterpretExprOutput_OK {
+			if cmp.Status != EvaluateExprOutput_OK {
 				return cmp
 			}
 			if cmp.Value.Num != 0 {
@@ -705,58 +704,58 @@ func isFiniteNumber(v *yaml.Value) bool {
 	return v.Type == yaml.Type_TYPE_NUM && !math.IsInf(v.Num, 0) && !math.IsNaN(v.Num)
 }
 
-func errorUnsupportedExpr(path *Path, v *yaml.Value) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_UNSUPPORTED_EXPR,
+func errorUnsupportedExpr(path *Path, v *yaml.Value) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_UNSUPPORTED_EXPR,
 		ErrorMessage: fmt.Sprintf("unsupported expr: got %v", v.Keys()),
 		ErrorPath:    path,
 	}
 }
-func errorUnexpectedType(path *Path, want []yaml.Type, got yaml.Type) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_UNEXPECTED_TYPE,
+func errorUnexpectedType(path *Path, want []yaml.Type, got yaml.Type) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_UNEXPECTED_TYPE,
 		ErrorMessage: fmt.Sprintf("unexpected type: want %v, got %v", want, got),
 		ErrorPath:    path,
 	}
 }
-func errorArithmeticError(path *Path, message string) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_ARITHMETIC_ERROR,
+func errorArithmeticError(path *Path, message string) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_ARITHMETIC_ERROR,
 		ErrorMessage: fmt.Sprintf("arithmetic error: %v", message),
 		ErrorPath:    path,
 	}
 }
-func errorIndexOutOfBounds(path *Path, begin, end, index int) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_INDEX_OUT_OF_BOUNDS,
+func errorIndexOutOfBounds(path *Path, begin, end, index int) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_INDEX_OUT_OF_BOUNDS,
 		ErrorMessage: fmt.Sprintf("index out of bounds: %v not in [%v, %v)", index, begin, end),
 		ErrorPath:    path,
 	}
 }
-func errorKeyNotFound(path *Path, want []string, got string) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_KEY_NOT_FOUND,
+func errorKeyNotFound(path *Path, want []string, got string) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_KEY_NOT_FOUND,
 		ErrorMessage: fmt.Sprintf("key not found: %q not in {%v}", got, strings.Join(want, ",")),
 		ErrorPath:    path,
 	}
 }
-func errorReferenceNotFound(path *Path, ref string) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_REFERENCE_NOT_FOUND,
+func errorReferenceNotFound(path *Path, ref string) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_REFERENCE_NOT_FOUND,
 		ErrorMessage: fmt.Sprintf("reference not found: %q", ref),
 		ErrorPath:    path,
 	}
 }
-func errorCasesNotExhaustive(path *Path) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_CASES_NOT_EXHAUSTIVE,
+func errorCasesNotExhaustive(path *Path) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_CASES_NOT_EXHAUSTIVE,
 		ErrorMessage: "cases not exhaustive",
 		ErrorPath:    path,
 	}
 }
-func errorUnsupportedOperation(path *Path, gotOp string) *InterpretExprOutput {
-	return &InterpretExprOutput{
-		Status:       InterpretExprOutput_UNSUPPORTED_OPERATION,
+func errorUnsupportedOperation(path *Path, gotOp string) *EvaluateExprOutput {
+	return &EvaluateExprOutput{
+		Status:       EvaluateExprOutput_UNSUPPORTED_OPERATION,
 		ErrorMessage: fmt.Sprintf("unsupported operation: %q", gotOp),
 		ErrorPath:    path,
 	}

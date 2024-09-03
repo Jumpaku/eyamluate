@@ -1,0 +1,45 @@
+name: eyamlate
+version: v0.0.0
+description: eyamluate command line interface
+options:
+  -help:
+    short: -h
+    type: boolean
+    description: Show help message.
+subcommands:
+  version:
+    description: Shows the version of the eyamluate command.
+  eval:
+    description: Evaluates a yaml expression.
+    options:
+      -help:
+        short: -h
+        type: boolean
+        description: Show help message.
+      -input-path:
+        short: -i
+        description: Input yaml file path. stdin is used if not provided.
+      -output-path:
+        short: -o
+        description: Output file path. stdout is used if not provided.
+      -format:
+        default: yaml
+        short: -f
+        description: Output format. One of yaml or json.
+      -pretty:
+        short: -p
+        type: boolean
+        description: Pretty print the output.
+  validate:
+    description: Validates a yaml file.
+    options:
+      -help:
+        short: -h
+        type: boolean
+        description: Show help message.
+      -input-path:
+        short: -i
+        description: Input yaml file path. stdin is used if not provided.
+      -output-path:
+        short: -o
+        description: Output file path.s stdout is used if not provided.
