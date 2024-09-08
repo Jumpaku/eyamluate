@@ -19,7 +19,7 @@ func (u *decoder) Decode(input *DecodeInput) *DecodeOutput {
 	if err != nil {
 		return &DecodeOutput{
 			IsError:      true,
-			ErrorMessage: fmt.Sprintf("fail to convert yaml to json: %+v", err),
+			ErrorMessage: fmt.Sprintf("fail to convertFromGo yaml to json: %+v", err),
 		}
 	}
 	var v any
@@ -29,10 +29,10 @@ func (u *decoder) Decode(input *DecodeInput) *DecodeOutput {
 			ErrorMessage: fmt.Sprintf("fail to unmarshal json: %+v", err),
 		}
 	}
-	return &DecodeOutput{Value: convert(v)}
+	return &DecodeOutput{Value: convertFromGo(v)}
 }
 
-func convert(v any) *Value {
+func convertFromGo(v any) *Value {
 	switch v := v.(type) {
 	default:
 		panic(fmt.Sprintf("unexpected type %T", v))
@@ -47,13 +47,13 @@ func convert(v any) *Value {
 	case []interface{}:
 		arr := []*Value{}
 		for _, elem := range v {
-			arr = append(arr, convert(elem))
+			arr = append(arr, convertFromGo(elem))
 		}
 		return &Value{Type: Type_TYPE_ARR, Arr: arr}
 	case map[string]interface{}:
 		obj := map[string]*Value{}
 		for key, value := range v {
-			obj[key] = convert(value)
+			obj[key] = convertFromGo(value)
 		}
 		return &Value{Type: Type_TYPE_OBJ, Obj: obj}
 	}
