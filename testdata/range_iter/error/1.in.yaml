@@ -1,0 +1,3 @@
+for: [ i, e ]
+in: { json: 1 }
+do: { ref: i }

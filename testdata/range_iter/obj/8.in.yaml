@@ -1,0 +1,4 @@
+for: [ k, v ]
+in: { json: { x: 1, y: 2, z: 3 } }
+do: { ref: k }
+if: { json: false }
