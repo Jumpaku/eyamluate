@@ -1,6 +1,15 @@
-import 'package:eyamluate/eyamluate.dart';
+import 'package:eyamluate/eval/eval.dart';
+import 'package:eyamluate/eval/evaluator.dart';
+import 'package:eyamluate/yaml/encoder.dart';
+import 'package:eyamluate/yaml/yaml.dart';
 
 void main() {
-  var awesome = Awesome();
-  print('awesome: ${awesome.isAwesome}');
+  final evaluated = Evaluator().evaluate(EvaluateInput(
+    source: '''cat: ["Hello", ", ", "eyamluate", "!"]''',
+  ));
+  final decoded = Encoder().encode(EncodeInput(
+    value: evaluated.value,
+  ));
+  print(decoded.result);
+  // Output: "Hello, eyamluate!"
 }

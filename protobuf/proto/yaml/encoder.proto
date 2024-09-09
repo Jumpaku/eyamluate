@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package yaml;
+
+import "yaml/value.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/yaml";
+
+service Encoder {
+  rpc Encode(EncodeInput) returns (EncodeOutput) {}
+}
+
+enum EncodeFormat {
+  ENCODE_FORMAT_YAML = 0;
+  ENCODE_FORMAT_JSON = 1;
+}
+message EncodeInput {
+  EncodeFormat format = 1;
+  bool pretty = 2;
+  Value value = 3;
+}
+
+message EncodeOutput {
+  bool is_error = 1;
+  string error_message = 2;
+  string result = 3;
+}

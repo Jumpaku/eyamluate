@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+
+  dart:
+    build:
+      dockerfile: dart/Dockerfile
+      context: .
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+
+  golang:
+    build:
+      dockerfile: golang/Dockerfile
+      context: .
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace

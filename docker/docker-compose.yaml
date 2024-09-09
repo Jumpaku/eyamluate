@@ -1,9 +1,0 @@
-version: '3'
-services:
-  buf:
-    build:
-      context: .
-      dockerfile: Dockerfile.buf
-    volumes:
-      - ..:/workspace
-    tty: true

@@ -17,7 +17,7 @@ class _Testcase {
 void main() {
   final testcases = <String, _Testcase>{};
   final testdataDir =
-      Directory(p.join(Directory.current.path, "test", "testdata"));
+      Directory(p.join(Directory.current.path, "..", "testdata"));
   testdataDir.listSync(recursive: true, followLinks: true).forEach((e) {
     if (e is! File) return;
     final path = p.canonicalize(e.path);

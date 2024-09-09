@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package eval;
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/eval";
+
+message OpUnary {
+  enum Operator {
+    UNSPECIFIED = 0;
+    LEN = 1;
+    NOT = 2;
+    FLAT = 3;
+    FLOOR = 4;
+    CEIL = 5;
+    ABORT = 6;
+  }
+}
+
+message OpBinary {
+  enum Operator {
+    UNSPECIFIED = 0;
+    SUB = 1;
+    DIV = 2;
+    EQ = 4;
+    NEQ = 5;
+    LT = 6;
+    LTE = 7;
+    GT = 8;
+    GTE = 9;
+  }
+}
+
+message OpVariadic {
+  enum Operator {
+    UNSPECIFIED = 0;
+    ADD = 1;
+    MUL = 2;
+    AND = 3;
+    OR = 4;
+    CAT = 5;
+    MIN = 6;
+    MAX = 7;
+    MERGE = 8;
+  }
+}

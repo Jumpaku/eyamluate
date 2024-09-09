@@ -6,13 +6,13 @@ import (
 	"github.com/Jumpaku/eyamlate/golang/yaml"
 )
 
-func ExampleEyamluate() {
+func ExampleEvaluator_Evaluate() {
 	evaluated := eval.NewEvaluator().Evaluate(&eval.EvaluateInput{
-		Source: `cat: ["Hello", ", ", "eyamlate", "!"]`,
+		Source: `cat: ["Hello", ", ", "eyamluate", "!"]`,
 	})
 	decoded := yaml.NewEncoder().Encode(&yaml.EncodeInput{
 		Value: evaluated.Value,
 	})
 	fmt.Println(decoded.Result)
-	// Output: Hello, eyamlate!
+	// Output: Hello, eyamluate!
 }

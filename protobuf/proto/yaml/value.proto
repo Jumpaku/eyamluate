@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package yaml;
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/yaml";
+
+enum Type {
+  TYPE_UNSPECIFIED = 0;
+  TYPE_NULL = 1;
+  TYPE_BOOL = 2;
+  TYPE_NUM = 3;
+  TYPE_STR = 4;
+  TYPE_ARR = 5;
+  TYPE_OBJ = 6;
+}
+message Value {
+  Type type = 1;
+  bool bool = 2;
+  double num = 3;
+  string str = 4;
+  repeated Value arr = 5;
+  map<string, Value> obj = 6;
+}

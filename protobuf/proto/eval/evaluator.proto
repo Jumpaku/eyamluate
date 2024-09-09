@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package eval;
+
+import "yaml/value.proto";
+
+option go_package = "github.com/Jumpaku/eyamlate/golang/eval";
+
+service Evaluator {
+  rpc Evaluate(EvaluateInput) returns (EvaluateOutput) {}
+  rpc EvaluateExpr(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateEval(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateScalar(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateObj(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateArr(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateJson(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateRangeIter(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateGetElem(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateFunCall(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateCases(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateOpUnary(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateOpBinary(EvaluateExprInput) returns (EvaluateExprOutput) {}
+  rpc EvaluateOpVariadic(EvaluateExprInput) returns (EvaluateExprOutput) {}
+}
+
+message FunDef {
+  string def = 1;
+  yaml.Value value = 2;
+  repeated string with = 3;
+  Path path = 10;
+}
+message FunDefList {
+  FunDefList parent = 1;
+  FunDef def = 2;
+}
+
+message Path {
+  message Pos {
+    int64 index = 1;
+    string key = 2;
+  }
+  repeated Pos pos = 1;
+}
+
+message EvaluateInput {
+  string source = 1;
+}
+
+message EvaluateOutput {
+  enum Status {
+    OK = 0;
+    DECODE_ERROR = 1;
+    VALIDATE_ERROR = 2;
+    EXPR_ERROR = 3;
+  }
+  Status status = 1;
+  string error_message = 2;
+  Path expr_error_path = 3;
+  EvaluateExprOutput.Status expr_status = 4;
+  yaml.Value value = 5;
+}
+
+message EvaluateExprInput {
+  Path path = 10;
+  FunDefList defs = 1;
+  yaml.Value expr = 2;
+}
+
+message EvaluateExprOutput {
+  enum Status {
+    OK = 0;
+    UNSUPPORTED_EXPR = 1;
+    UNEXPECTED_TYPE = 2;
+    ARITHMETIC_ERROR = 3;
+    INDEX_OUT_OF_BOUNDS = 4;
+    KEY_NOT_FOUND = 5;
+    REFERENCE_NOT_FOUND = 6;
+    CASES_NOT_EXHAUSTIVE = 7;
+    UNSUPPORTED_OPERATION = 8;
+    ABORTED = 9;
+    UNKNOWN = 10;
+  }
+  Status status = 1;
+  string error_message = 2;
+  Path error_path = 3;
+  yaml.Value value = 4;
+}
