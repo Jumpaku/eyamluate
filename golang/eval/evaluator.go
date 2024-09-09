@@ -183,7 +183,40 @@ func (i *evaluator) EvaluateRangeIter(input *EvaluateExprInput) *EvaluateExprOut
 	}
 	switch in.Value.Type {
 	default:
-		return errorUnexpectedType(path.AppendKey("in"), []yaml.Type{yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, in.Value.Type)
+		return errorUnexpectedType(path.AppendKey("in"), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, in.Value.Type)
+	case yaml.Type_TYPE_STR:
+		v := []*yaml.Value{}
+		for pos, val := range []rune(in.Value.Str) {
+			st := input.Defs
+			st = st.Register(&FunDef{
+				Def:   forPos,
+				Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(pos)},
+				Path:  path.AppendKey("for").AppendIndex(0),
+			})
+			st = st.Register(&FunDef{
+				Def:   forVal,
+				Value: &yaml.Value{Type: yaml.Type_TYPE_STR, Str: string(val)},
+				Path:  path.AppendKey("for").AppendIndex(1),
+			})
+			if if_, ok := input.Expr.Obj["if"]; ok {
+				if_ := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("if"), Defs: st, Expr: if_})
+				if if_.Status != EvaluateExprOutput_OK {
+					return if_
+				}
+				if if_.Value.Type != yaml.Type_TYPE_BOOL {
+					return errorUnexpectedType(path.AppendKey("if"), []yaml.Type{yaml.Type_TYPE_BOOL}, if_.Value.Type)
+				}
+				if !if_.Value.Bool {
+					continue
+				}
+			}
+			do := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
+			if do.Status != EvaluateExprOutput_OK {
+				return do
+			}
+			v = append(v, do.Value)
+		}
+		return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_ARR, Arr: v}}
 	case yaml.Type_TYPE_ARR:
 		v := []*yaml.Value{}
 		for pos, val := range in.Value.Arr {
@@ -198,6 +231,18 @@ func (i *evaluator) EvaluateRangeIter(input *EvaluateExprInput) *EvaluateExprOut
 				Value: val,
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
+			if if_, ok := input.Expr.Obj["if"]; ok {
+				if_ := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("if"), Defs: st, Expr: if_})
+				if if_.Status != EvaluateExprOutput_OK {
+					return if_
+				}
+				if if_.Value.Type != yaml.Type_TYPE_BOOL {
+					return errorUnexpectedType(path.AppendKey("if"), []yaml.Type{yaml.Type_TYPE_BOOL}, if_.Value.Type)
+				}
+				if !if_.Value.Bool {
+					continue
+				}
+			}
 			do := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
 			if do.Status != EvaluateExprOutput_OK {
 				return do
@@ -219,6 +264,18 @@ func (i *evaluator) EvaluateRangeIter(input *EvaluateExprInput) *EvaluateExprOut
 				Value: val,
 				Path:  path.AppendKey("for").AppendIndex(1),
 			})
+			if if_, ok := input.Expr.Obj["if"]; ok {
+				if_ := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("if"), Defs: st, Expr: if_})
+				if if_.Status != EvaluateExprOutput_OK {
+					return if_
+				}
+				if if_.Value.Type != yaml.Type_TYPE_BOOL {
+					return errorUnexpectedType(path.AppendKey("if"), []yaml.Type{yaml.Type_TYPE_BOOL}, if_.Value.Type)
+				}
+				if !if_.Value.Bool {
+					continue
+				}
+			}
 			do := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("do"), Defs: st, Expr: input.Expr.Obj["do"]})
 			if do.Status != EvaluateExprOutput_OK {
 				return do
