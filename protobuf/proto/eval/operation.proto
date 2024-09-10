@@ -3,6 +3,9 @@ syntax = "proto3";
 package eval;
 
 option go_package = "github.com/Jumpaku/eyamlate/golang/eval";
+option php_namespace = "Jumpaku\\Eyamluate\\Eval_";
+option php_metadata_namespace = "Jumpaku\\Eyamluate\\Metadata\\Eval_";
+option php_class_prefix = "PB";
 
 message OpUnary {
   enum Operator {

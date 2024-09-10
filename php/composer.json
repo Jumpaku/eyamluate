@@ -1,0 +1,16 @@
+{
+  "name": "jumpaku.net/eyamluate",
+  "description": "The eyamluate API in PHP",
+  "license": "BSD-2-Clause",
+  "require": {
+    "google/protobuf": "^4.28",
+    "symfony/yaml": "^7.1",
+    "mustangostang/spyc": "^0.6.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "Jumpaku\\Eyamluate\\": ["src/"],
+      "": ["build/gen/"]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# buf.gen.yaml
+version: v2
+managed:
+  enabled: false
+plugins:
+  - remote: buf.build/protocolbuffers/php:v28.0
+    out: ../../php/build/gen

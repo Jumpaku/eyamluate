@@ -1,4 +1,4 @@
-version: '3'
+version: '3.4'
 
 services:
 
@@ -15,6 +15,16 @@ services:
     build:
       dockerfile: golang/Dockerfile
       context: .
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+
+  php:
+    build:
+      dockerfile: php/Dockerfile
+      context: .
+      target: workspace
     tty: true
     working_dir: /workspace
     volumes:
