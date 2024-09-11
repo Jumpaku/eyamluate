@@ -351,7 +351,7 @@ class Evaluator {
         final val = from.value.obj[pos];
         if (val == null) {
           return _errorKeyNotFound(
-              pathAppendKey(path, "get"), from.value.obj.keys.toList(), pos);
+              pathAppendKey(path, "get"), pos, from.value.obj.keys.toList());
         }
         return EvaluateExprOutput(value: from.value.obj[pos]);
       default:
@@ -372,12 +372,12 @@ class Evaluator {
     for (final argName in funDef.def.with_3) {
       final with_ = funCall.obj["with"];
       if (with_ == null) {
-        return _errorKeyNotFound(path, funCall.obj.keys.toList(), "with");
+        return _errorKeyNotFound(path, "with", funCall.obj.keys.toList());
       }
       final argVal = with_.obj[argName];
       if (argVal == null) {
         return _errorKeyNotFound(
-            pathAppendKey(path, "with"), with_.obj.keys.toList(), argName);
+            pathAppendKey(path, "with"), argName, with_.obj.keys.toList());
       }
       final arg = evaluateExpr(EvaluateExprInput(
           path: pathAppendKey(pathAppendKey(path, "with"), argName),
@@ -468,7 +468,7 @@ class Evaluator {
                   type: Type.TYPE_NUM, num: operand.obj.length.toDouble()));
         default:
           return _errorUnexpectedType(pathAppendKey(input.path, operator),
-              [Type.TYPE_STR, Type.TYPE_ARR], operand.type);
+              [Type.TYPE_STR, Type.TYPE_ARR, Type.TYPE_OBJ], operand.type);
       }
     } else if (operator == opUnaryKeyName(OpUnary_Operator.NOT)) {
       if (operand.type != Type.TYPE_BOOL) {
@@ -513,6 +513,13 @@ class Evaluator {
             "ceil(${operand.num}) is not a finite number");
       }
       return EvaluateExprOutput(value: v);
+    }else if (operator == opUnaryKeyName(OpUnary_Operator.ABORT)) {
+      if (operand.type != Type.TYPE_STR) {
+        return _errorUnexpectedType(
+            pathAppendKey(input.path, operator), [Type.TYPE_STR], operand.type);
+      }
+      return EvaluateExprOutput(
+          status: EvaluateExprOutput_Status.ABORTED, errorMessage: operand.str);
     }
     return _errorUnsupportedOperation(input.path, operator);
   }
@@ -869,10 +876,10 @@ EvaluateExprOutput _errorIndexOutOfBounds(
   );
 }
 
-EvaluateExprOutput _errorKeyNotFound(Path path, List<String> want, String got) {
+EvaluateExprOutput _errorKeyNotFound(Path path, String want, List<String> actual) {
   return EvaluateExprOutput(
     status: EvaluateExprOutput_Status.KEY_NOT_FOUND,
-    errorMessage: "key not found: ${want.join(",")} not in {${got}}",
+    errorMessage: "key not found: ${want} not in {${actual.join(",")}}",
     errorPath: path,
   );
 }

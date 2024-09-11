@@ -330,7 +330,7 @@ func (i *evaluator) EvaluateGetElem(input *EvaluateExprInput) *EvaluateExprOutpu
 		}
 		pos := get.Value.Str
 		if _, ok := from.Value.Obj[pos]; !ok {
-			return errorKeyNotFound(path.AppendKey("get"), from.Value.Keys(), pos)
+			return errorKeyNotFound(path.AppendKey("get"), pos, from.Value.Keys())
 		}
 		return &EvaluateExprOutput{Value: from.Value.Obj[pos]}
 	}
@@ -348,11 +348,11 @@ func (i *evaluator) EvaluateFunCall(input *EvaluateExprInput) *EvaluateExprOutpu
 	for _, argName := range funDef.Def.With {
 		with, ok := funCall.Obj["with"]
 		if !ok {
-			return errorKeyNotFound(path, funCall.Keys(), "with")
+			return errorKeyNotFound(path, "with", funCall.Keys())
 		}
 		argVal, ok := with.Obj[argName]
 		if !ok {
-			return errorKeyNotFound(path.AppendKey("with"), with.Keys(), argName)
+			return errorKeyNotFound(path.AppendKey("with"), argName, with.Keys())
 		}
 		arg := i.EvaluateExpr(&EvaluateExprInput{Path: path.AppendKey("with").AppendKey(argName), Defs: input.Defs, Expr: argVal})
 		if arg.Status != EvaluateExprOutput_OK {
@@ -415,7 +415,7 @@ func (i *evaluator) EvaluateOpUnary(input *EvaluateExprInput) *EvaluateExprOutpu
 	case OpUnary_LEN.KeyName():
 		switch operand.Type {
 		default:
-			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR}, operand.Type)
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR, yaml.Type_TYPE_ARR, yaml.Type_TYPE_OBJ}, operand.Type)
 		case yaml.Type_TYPE_STR:
 			return &EvaluateExprOutput{Value: &yaml.Value{Type: yaml.Type_TYPE_NUM, Num: float64(len(operand.Str))}}
 		case yaml.Type_TYPE_ARR:
@@ -458,6 +458,11 @@ func (i *evaluator) EvaluateOpUnary(input *EvaluateExprInput) *EvaluateExprOutpu
 			return errorArithmeticError(input.Path.AppendKey(operator), fmt.Sprintf("ceil(%v) is not a finite number", operand.Num))
 		}
 		return &EvaluateExprOutput{Value: v}
+	case OpUnary_ABORT.KeyName():
+		if operand.Type != yaml.Type_TYPE_STR {
+			return errorUnexpectedType(input.Path.AppendKey(operator), []yaml.Type{yaml.Type_TYPE_STR}, operand.Type)
+		}
+		return &EvaluateExprOutput{Status: EvaluateExprOutput_ABORTED, ErrorMessage: operand.Str}
 	}
 }
 
@@ -789,10 +794,10 @@ func errorIndexOutOfBounds(path *Path, begin, end, index int) *EvaluateExprOutpu
 		ErrorPath:    path,
 	}
 }
-func errorKeyNotFound(path *Path, want []string, got string) *EvaluateExprOutput {
+func errorKeyNotFound(path *Path, want string, actual []string) *EvaluateExprOutput {
 	return &EvaluateExprOutput{
 		Status:       EvaluateExprOutput_KEY_NOT_FOUND,
-		ErrorMessage: fmt.Sprintf("key not found: %q not in {%v}", got, strings.Join(want, ",")),
+		ErrorMessage: fmt.Sprintf("key not found: %q not in {%v}", want, strings.Join(actual, ",")),
 		ErrorPath:    path,
 	}
 }
