@@ -29,3 +29,12 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
+
+  typescript:
+    build:
+      dockerfile: typescript/Dockerfile
+      context: .
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
