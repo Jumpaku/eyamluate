@@ -19,13 +19,13 @@ import (
 
 func main() {
 	evaluated := eval.NewEvaluator().Evaluate(&eval.EvaluateInput{
-		Source: `cat: ["Hello", ", ", "eyamlate", "!"]`,
+		Source: `cat: ["Hello", ", ", "eyamluate", "!"]`,
 	})
 	encoded := yaml.NewEncoder().Encode(&yaml.EncodeInput{
 		Value: evaluated.Value,
 	})
 	fmt.Println(encoded.Result)
-	// Output: Hello, eyamlate!
+	// Output: Hello, eyamluate!
 }
 ```
 

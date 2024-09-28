@@ -48,8 +48,8 @@ The CLI document is available at https://github.com/Jumpaku/eyamluate/main/golan
 ### Eaxmple
 
 ```shell
-echo 'cat: ["Hello", ", ", "eyamlate", "!"]' | eyamluate eval
-# => 'Hello, eyamlate!'
+echo 'cat: ["Hello", ", ", "eyamluate", "!"]' | eyamluate eval
+# => 'Hello, eyamluate!'
 ```
 
 ## Related Work

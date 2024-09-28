@@ -1,6 +1,6 @@
-# eyamlate (v0.0.0)
+# eyamluate (v0.0.0)
 
-## eyamlate
+## eyamluate
 
 ### Description
 
@@ -9,7 +9,7 @@ eyamluate command line interface
 ### Syntax
 
 ```shell
-eyamlate  [<option>]...
+eyamluate  [<option>]...
 ```
 
 ### Options
@@ -29,7 +29,7 @@ eyamlate  [<option>]...
   Shows the version of the eyamluate command.  
 
 
-## eyamlate eval
+## eyamluate eval
 
 ### Description
 
@@ -38,7 +38,7 @@ Evaluates a yaml expression.
 ### Syntax
 
 ```shell
-eyamlate eval [<option>]...
+eyamluate eval [<option>]...
 ```
 
 ### Options
@@ -59,7 +59,7 @@ eyamlate eval [<option>]...
   Pretty print the output.  
 
 
-## eyamlate validate
+## eyamluate validate
 
 ### Description
 
@@ -68,7 +68,7 @@ Validates a yaml file.
 ### Syntax
 
 ```shell
-eyamlate validate [<option>]...
+eyamluate validate [<option>]...
 ```
 
 ### Options
@@ -83,7 +83,7 @@ eyamlate validate [<option>]...
   Output file path.s stdout is used if not provided.  
 
 
-## eyamlate version
+## eyamluate version
 
 ### Description
 
@@ -92,7 +92,7 @@ Shows the version of the eyamluate command.
 ### Syntax
 
 ```shell
-eyamlate version
+eyamluate version
 ```
 
 

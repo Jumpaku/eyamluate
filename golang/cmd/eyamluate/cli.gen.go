@@ -398,16 +398,16 @@ func GetDoc(subcommands []string) string {
 		panic(fmt.Sprintf(`invalid subcommands: %v`, subcommands))
 
 	case "":
-		return "eyamlate (v0.0.0)\n\neyamlate\n\n    Description:\n        eyamluate command line interface\n\n    Syntax:\n        $ eyamlate  [<option>]...\n\n    Options:\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n    Subcommands:\n        eval:\n            Evaluates a yaml expression.\n\n        validate:\n            Validates a yaml file.\n\n        version:\n            Shows the version of the eyamluate command.\n\n\n"
+		return "eyamluate (v0.0.0)\n\neyamluate\n\n    Description:\n        eyamluate command line interface\n\n    Syntax:\n        $ eyamluate  [<option>]...\n\n    Options:\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n    Subcommands:\n        eval:\n            Evaluates a yaml expression.\n\n        validate:\n            Validates a yaml file.\n\n        version:\n            Shows the version of the eyamluate command.\n\n\n"
 
 	case "eval":
-		return "eyamlate (v0.0.0)\n\neyamlate eval\n\n    Description:\n        Evaluates a yaml expression.\n\n    Syntax:\n        $ eyamlate eval [<option>]...\n\n    Options:\n        -format=<string>, -f=<string>  (default=\"yaml\"):\n            Output format. One of yaml or json.\n\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n        -input-path=<string>, -i=<string>  (default=\"\"):\n            Input yaml file path. stdin is used if not provided.\n\n        -output-path=<string>, -o=<string>  (default=\"\"):\n            Output file path. stdout is used if not provided.\n\n        -pretty[=<boolean>], -p[=<boolean>]  (default=false):\n            Pretty print the output.\n\n\n"
+		return "eyamluate (v0.0.0)\n\neyamluate eval\n\n    Description:\n        Evaluates a yaml expression.\n\n    Syntax:\n        $ eyamluate eval [<option>]...\n\n    Options:\n        -format=<string>, -f=<string>  (default=\"yaml\"):\n            Output format. One of yaml or json.\n\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n        -input-path=<string>, -i=<string>  (default=\"\"):\n            Input yaml file path. stdin is used if not provided.\n\n        -output-path=<string>, -o=<string>  (default=\"\"):\n            Output file path. stdout is used if not provided.\n\n        -pretty[=<boolean>], -p[=<boolean>]  (default=false):\n            Pretty print the output.\n\n\n"
 
 	case "validate":
-		return "eyamlate (v0.0.0)\n\neyamlate validate\n\n    Description:\n        Validates a yaml file.\n\n    Syntax:\n        $ eyamlate validate [<option>]...\n\n    Options:\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n        -input-path=<string>, -i=<string>  (default=\"\"):\n            Input yaml file path. stdin is used if not provided.\n\n        -output-path=<string>, -o=<string>  (default=\"\"):\n            Output file path.s stdout is used if not provided.\n\n\n"
+		return "eyamluate (v0.0.0)\n\neyamluate validate\n\n    Description:\n        Validates a yaml file.\n\n    Syntax:\n        $ eyamluate validate [<option>]...\n\n    Options:\n        -help[=<boolean>], -h[=<boolean>]  (default=false):\n            Show help message.\n\n        -input-path=<string>, -i=<string>  (default=\"\"):\n            Input yaml file path. stdin is used if not provided.\n\n        -output-path=<string>, -o=<string>  (default=\"\"):\n            Output file path.s stdout is used if not provided.\n\n\n"
 
 	case "version":
-		return "eyamlate (v0.0.0)\n\neyamlate version\n\n    Description:\n        Shows the version of the eyamluate command.\n\n    Syntax:\n        $ eyamlate version\n\n\n"
+		return "eyamluate (v0.0.0)\n\neyamluate version\n\n    Description:\n        Shows the version of the eyamluate command.\n\n    Syntax:\n        $ eyamluate version\n\n\n"
 
 	}
 }
