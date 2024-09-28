@@ -1,22 +1,20 @@
-import {ValidateInput, ValidateOutput, ValidateOutput_Status, ValidateOutputSchema} from "./validator_pb.js";
+import { ValidateOutput_Status, ValidateOutputSchema } from "./validator_pb.js";
 import schema from "../schema/eyamluate.schema.js";
-import {create} from "@bufbuild/protobuf";
-import {Ajv, ValidateFunction} from "ajv"
+import { create } from "@bufbuild/protobuf";
+import { Ajv } from "ajv";
 import YAML from "yaml";
-
 export class Validator {
     constructor() {
-        const ajv = new Ajv();// options can be passed, e.g. {allErrors: true}
+        const ajv = new Ajv(); // options can be passed, e.g. {allErrors: true}
         this.validator = ajv.compile(schema);
     }
-
-    private readonly validator: ValidateFunction<unknown>;
-
-    validate(input: ValidateInput): ValidateOutput {
-        let data: string;
+    validator;
+    validate(input) {
+        let data;
         try {
             data = YAML.parse(input.source);
-        } catch (e) {
+        }
+        catch (e) {
             return create(ValidateOutputSchema, {
                 status: ValidateOutput_Status.YAML_ERROR,
                 errorMessage: e instanceof Error ? e.message : JSON.stringify(e),
@@ -38,7 +36,5 @@ export class Validator {
         return create(ValidateOutputSchema, {
             status: ValidateOutput_Status.OK,
         });
-
     }
-
 }

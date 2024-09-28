@@ -10,9 +10,9 @@ func ExampleEvaluator_Evaluate() {
 	evaluated := eval.NewEvaluator().Evaluate(&eval.EvaluateInput{
 		Source: `cat: ["Hello", ", ", "eyamluate", "!"]`,
 	})
-	decoded := yaml.NewEncoder().Encode(&yaml.EncodeInput{
+	encoded := yaml.NewEncoder().Encode(&yaml.EncodeInput{
 		Value: evaluated.Value,
 	})
-	fmt.Println(decoded.Result)
+	fmt.Println(encoded.Result)
 	// Output: Hello, eyamluate!
 }
