@@ -3,7 +3,7 @@
 ## Installation
 
 ```shell
-go get github.com/eyamluate/golang@latest
+go get github.com/Jumpaku/eyamluate/golang@latest
 ```
 
 ## Example
