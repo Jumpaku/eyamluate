@@ -38,7 +38,7 @@ https://github.com/Jumpaku/eyamluate/blob/main/golang/README.md
 ### Installation
 
 ```shell
-go install github.com/eyamluate/golang/cmd/eyamluate@latest
+go install github.com/Jumpaku/eyamluate/golang/cmd/eyamluate@latest
 ```
 
 ### Usage
