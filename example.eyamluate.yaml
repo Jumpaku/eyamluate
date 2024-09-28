@@ -1,11 +1,11 @@
 eval:
-  ref: gcd
-  with:
-    n: 270
-    m: 192
+  ref: square
+  with: { x: 5 }
 where:
-  - def: a
-    value: 1
+  - def: square
+    with: [ x ]
+    value:
+      mul: [ ref: x, ref: x ]
   - def: b
     value: true
   - def: c
@@ -44,7 +44,7 @@ where:
         - otherwise:
             ref: gcd
             with:
-              n: { mod: [ ref: m, ref: n ] }
+              n: { eq:  [ ref: m, ref: n ] }
               m: { ref: a }
   - def: "l"
     value:

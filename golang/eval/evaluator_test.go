@@ -2,7 +2,7 @@ package eval
 
 import (
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/yaml"
+	"github.com/Jumpaku/eyamluate/golang/yaml"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"

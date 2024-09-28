@@ -7,7 +7,7 @@
 package eval
 
 import (
-	yaml "github.com/Jumpaku/eyamlate/golang/yaml"
+	yaml "github.com/Jumpaku/eyamluate/golang/yaml"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

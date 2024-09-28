@@ -4,7 +4,7 @@ package yaml;
 
 import "yaml/value.proto";
 
-option go_package = "github.com/Jumpaku/eyamlate/golang/yaml";
+option go_package = "github.com/Jumpaku/eyamluate/golang/yaml";
 option php_namespace = "Jumpaku\\Eyamluate\\Yaml";
 option php_metadata_namespace = "Jumpaku\\Eyamluate\\Metadata\\Yaml";
 option php_class_prefix = "PB";

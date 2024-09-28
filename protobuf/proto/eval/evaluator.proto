@@ -4,7 +4,7 @@ package eval;
 
 import "yaml/value.proto";
 
-option go_package = "github.com/Jumpaku/eyamlate/golang/eval";
+option go_package = "github.com/Jumpaku/eyamluate/golang/eval";
 option php_namespace = "Jumpaku\\Eyamluate\\Eval_";
 option php_metadata_namespace = "Jumpaku\\Eyamluate\\Metadata\\Eval_";
 option php_class_prefix = "PB";

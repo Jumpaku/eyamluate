@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/eval"
-	yaml2 "github.com/Jumpaku/eyamlate/golang/yaml"
+	"github.com/Jumpaku/eyamluate/golang/eval"
+	yaml2 "github.com/Jumpaku/eyamluate/golang/yaml"
 	"github.com/goccy/go-yaml"
 	"google.golang.org/protobuf/encoding/protojson"
 	"io"

@@ -2,7 +2,7 @@ package eval
 
 import (
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/yaml"
+	"github.com/Jumpaku/eyamluate/golang/yaml"
 	"math"
 	"slices"
 	"strings"

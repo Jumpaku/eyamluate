@@ -2,8 +2,8 @@ package golang_test
 
 import (
 	"fmt"
-	"github.com/Jumpaku/eyamlate/golang/eval"
-	"github.com/Jumpaku/eyamlate/golang/yaml"
+	"github.com/Jumpaku/eyamluate/golang/eval"
+	"github.com/Jumpaku/eyamluate/golang/yaml"
 )
 
 func ExampleEvaluator_Evaluate() {

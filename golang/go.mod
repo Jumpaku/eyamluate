@@ -1,4 +1,4 @@
-module github.com/Jumpaku/eyamlate/golang
+module github.com/Jumpaku/eyamluate/golang
 
 go 1.21.5
 
